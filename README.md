@@ -1,5 +1,5 @@
 # Project_seminar
-Arseniev Tushin Zibinsky Morozov Volnov
+Arseniev Tushin Zybinsky Morozov Volnov
 
 TODO:
 1) Поискать статьи по теме
