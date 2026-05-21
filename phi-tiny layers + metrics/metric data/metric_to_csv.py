@@ -6,9 +6,12 @@ import numpy as np
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
-model_path = r"C:\Users\stana\Desktop\MoE\Phi-tiny-MoE"
-dataset_path = r"C:\Users\stana\Desktop\MoE\dev_rand_split.jsonl"
-benchmark_dir = r"C:\Users\stana\Desktop\MoE\benchmark_phi"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
+
+model_path = os.path.abspath(os.path.join(BASE_DIR, "models", "phi-tiny"))
+dataset_path = os.path.abspath(os.path.join(BASE_DIR, "datasets", "dev_rand_split.jsonl"))
+benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "phi-tiny layers + metrics", "metric data", "metrics"))
 
 os.makedirs(benchmark_dir, exist_ok=True)
 

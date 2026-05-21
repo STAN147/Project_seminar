@@ -6,9 +6,12 @@ import numpy as np
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
-model_path = r""
-dataset_path = r""
-benchmark_dir = r""
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
+
+model_path = os.path.abspath(os.path.join(BASE_DIR, "models", "Qwen"))
+dataset_path = os.path.abspath(os.path.join(BASE_DIR, "datasets", "dev_rand_split.jsonl"))
+benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "Qwen1.5 metrics + layers + proxy", "metric data", "metrics"))
 
 os.makedirs(benchmark_dir, exist_ok=True)
 

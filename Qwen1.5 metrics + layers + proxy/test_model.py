@@ -1,7 +1,12 @@
+import os
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 import torch
 
-model_path = r"" 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
+
+model_path = os.path.abspath(os.path.join(BASE_DIR, "models", "Qwen"))
+
 
 tokenizer = AutoTokenizer.from_pretrained(model_path)
 

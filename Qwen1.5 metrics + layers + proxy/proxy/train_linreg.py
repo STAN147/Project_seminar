@@ -6,7 +6,9 @@ import torch.nn as nn
 import torch.optim as optim
 from scipy.stats import pearsonr, spearmanr
 
-benchmark_dir = r""
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
+benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "Qwen1.5 metrics + layers + proxy", "metric data", "metrics"))
 
 ablation_drops = [
     -70.7, -70.1,  -9.9, -58.0, -37.0, -13.0, -66.9,  -6.7, 
