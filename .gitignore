@@ -1,0 +1,5 @@
+models/Qwen/*
+models/phi-tiny/*
+
+!models/Qwen/.gitkeep
+!models/phi-tiny/.gitkeep
