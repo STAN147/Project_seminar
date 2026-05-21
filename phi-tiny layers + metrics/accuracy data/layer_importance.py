@@ -10,7 +10,7 @@ model_path = os.path.abspath(os.path.join(BASE_DIR, "models", "phi-tiny"))
 dataset_path = os.path.abspath(os.path.join(BASE_DIR, "datasets", "dev_rand_split.jsonl"))
 
 tokenizer = AutoTokenizer.from_pretrained(model_path)
-df = pd.read_parquet(dataset_path)
+df = pd.read_json(dataset_path, lines=True)
 data = df.to_dict('records')
 limit = len(data)
 
