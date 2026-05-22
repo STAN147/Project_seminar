@@ -15,7 +15,6 @@ print("Загрузка токенизатора...")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, use_fast=False, local_files_only=True)
 print("Токенизатор загружен.")
 
-# ---------- 4-БИТНОЕ КВАНТОВАНИЕ ----------
 quantization_config = BitsAndBytesConfig(
     load_in_4bit=True,
     bnb_4bit_compute_dtype=torch.float16,
@@ -23,18 +22,18 @@ quantization_config = BitsAndBytesConfig(
     bnb_4bit_quant_type="nf4"
 )
 
-# ---------- ЗАГРУЗКА МОДЕЛИ С ПРОСТЫМ device_map ----------
-print("Загрузка модели (будет виден прогресс)...")
+# Загрузка модели с device_map="balanced"
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_PATH,
     quantization_config=quantization_config,
-    device_map="auto",                     # Позволяет transformers самому распределить
+    device_map="balanced",  # <-- Ключевое изменение!
     torch_dtype=torch.float16,
     low_cpu_mem_usage=True,
-    local_files_only=True                  # Не ходим в интернет, только локальные файлы
+    local_files_only=True
 )
+
+print(f"Карта устройств: {model.hf_device_map}") # Для проверки, куда что попало
 print("Модель загружена!")
-print(f"Карта устройств: {model.hf_device_map}")
 
 # ---------- ТЕСТОВЫЙ ВОПРОС (один для начала) ----------
 def ask_question(question):
