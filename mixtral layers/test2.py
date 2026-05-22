@@ -28,8 +28,8 @@ print("Загрузка модели (может занять несколько
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_PATH,
     quantization_config=quantization_config,
-    device_map="auto",                      # Автоматическое распределение по устройствам
-    max_memory={0: "20GiB", 1: "20GiB"},    # <--- КЛЮЧЕВОЙ МОМЕНТ: лимит по 20 ГБ на каждую GPU
+    device_map="sequential",                      # Автоматическое распределение по устройствам
+    max_memory={0: "23GiB", 1: "23GiB"},    # <--- КЛЮЧЕВОЙ МОМЕНТ: лимит по 20 ГБ на каждую GPU
     offload_folder="offload",
     torch_dtype=torch.float16,
     low_cpu_mem_usage=True,
