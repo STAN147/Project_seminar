@@ -15,7 +15,7 @@ print(f"Используется устройство: {DEVICE}")
 
 # ---------- ЗАГРУЗКА МОДЕЛИ ----------
 print("Загрузка токенизатора...")
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, use_fast=False)
 quantization_config = BitsAndBytesConfig(
     load_in_4bit=True,               # Включаем 4-битный режим
     bnb_4bit_compute_dtype=torch.float16, # Вычисления в 16-битном формате
