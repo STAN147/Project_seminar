@@ -1,42 +1,46 @@
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 import os
-
-# ---------- НАСТРОЙКИ ----------
-MODEL_PATH = "../models/mixtral"
-
-# Явно указываем, какие GPU использовать (0 и 1)
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
-print("Используемые GPU:", os.environ["CUDA_VISIBLE_DEVICES"])
-
-# ---------- ТОКЕНИЗАТОР ----------
-print("Загрузка токенизатора...")
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, use_fast=False, local_files_only=True)
-print("Токенизатор загружен.")
-
-# ---------- 4-БИТНОЕ КВАНТОВАНИЕ С РАСШИРЕННЫМИ НАСТРОЙКАМИ ----------
-quantization_config = BitsAndBytesConfig(
-    load_in_4bit=True,                      # Включаем 4-битный режим
-    bnb_4bit_compute_dtype=torch.float16,   # Вычисления в 16-битном формате
-    bnb_4bit_use_double_quant=True,         # Включаем двойное квантование для экономии памяти
-    bnb_4bit_quant_type="nf4",              # Используем более качественный тип квантования
-    llm_int8_enable_fp32_cpu_offload=True   # Разрешаем выгрузку на CPU при нехватке памяти
+import torch
+from transformers import (
+    AutoTokenizer,
+    AutoModelForCausalLM,
+    BitsAndBytesConfig
 )
 
-# ---------- ЗАГРУЗКА МОДЕЛИ С РУЧНЫМИ ЛИМИТАМИ ПАМЯТИ ----------
-print("Загрузка модели (может занять несколько минут)...")
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+
+MODEL_PATH = "../models/mixtral"
+
+tokenizer = AutoTokenizer.from_pretrained(
+    MODEL_PATH,
+    use_fast=False,
+    local_files_only=True
+)
+
+quantization_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_compute_dtype=torch.float16,
+    bnb_4bit_use_double_quant=True,
+)
+
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_PATH,
     quantization_config=quantization_config,
-    device_map="sequential",                      # Автоматическое распределение по устройствам
-    max_memory={0: "23GiB", 1: "23GiB"},    # <--- КЛЮЧЕВОЙ МОМЕНТ: лимит по 20 ГБ на каждую GPU
-    offload_folder="offload",
+
+    device_map="balanced",
+
+    max_memory={
+        0: "24GiB",
+        1: "24GiB",
+        "cpu": "64GiB"
+    },
+
     torch_dtype=torch.float16,
     low_cpu_mem_usage=True,
-    local_files_only=True
+    local_files_only=True,
 )
-print("Модель загружена!")
-print(f"Карта устройств: {model.hf_device_map}")
+
+print(model.hf_device_map)
 
 def ask_question(question):
     prompt = f"[INST] {question} [/INST]"
