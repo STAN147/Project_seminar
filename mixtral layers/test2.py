@@ -36,3 +36,14 @@ model = AutoModelForCausalLM.from_pretrained(
 )
 print("Модель загружена!")
 print(f"Карта устройств: {model.hf_device_map}")
+
+def ask_question(question):
+    prompt = f"[INST] {question} [/INST]"
+    inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
+    with torch.no_grad():
+        outputs = model.generate(**inputs, max_new_tokens=100, temperature=0.7)
+    input_length = inputs.input_ids.shape[1]
+    return tokenizer.decode(outputs[0][input_length:], skip_special_tokens=True)
+
+print("\nТестовый вопрос: What is the capital of France?")
+print("Ответ:", ask_question("What is the capital of France?"))
