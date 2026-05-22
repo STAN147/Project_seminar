@@ -1,18 +1,21 @@
-import os
+#!/usr/bin/env python3
 import torch
-import gc
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, AutoConfig
-from accelerate import infer_auto_device_map
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+import time
+import os
 
 # ---------- НАСТРОЙКИ ----------
 MODEL_PATH = "../models/mixtral"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"  # Указываем обе карты
-print("Начинаем загрузку...")
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"  # Обе карты
 
-# 1. Загружаем токенизатор (оставляем медленный для совместимости)
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, use_fast=False)
+print("Используемые GPU:", os.environ["CUDA_VISIBLE_DEVICES"])
 
-# 2. Настраиваем 4-битное квантование с флагами для экономии памяти
+# ---------- ТОКЕНИЗАТОР С ОТЛАДКОЙ ----------
+print("Загрузка токенизатора...")
+tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, use_fast=False, local_files_only=True)
+print("Токенизатор загружен.")
+
+# ---------- 4-БИТНОЕ КВАНТОВАНИЕ ----------
 quantization_config = BitsAndBytesConfig(
     load_in_4bit=True,
     bnb_4bit_compute_dtype=torch.float16,
@@ -20,85 +23,27 @@ quantization_config = BitsAndBytesConfig(
     bnb_4bit_quant_type="nf4"
 )
 
-# 3. Получаем конфигурацию модели и создаём "пустую" модель для расчётов
-config = AutoConfig.from_pretrained(MODEL_PATH)
-dummy_model = AutoModelForCausalLM.from_config(config)
-
-# 4. Явно создаём карту устройств: по 10 ГБ на каждую карту, остальное на CPU
-max_memory = {0: "100GiB", 1: "100GiB", "cpu": "128GiB"}
-device_map = infer_auto_device_map(
-    dummy_model,
-    max_memory=max_memory
-)
-
-# 5. Чистим память перед загрузкой
-del dummy_model
-gc.collect()
-torch.cuda.empty_cache()
-
-# 6. Загружаем модель с нашей готовой картой устройств
-print("Загрузка модели (это может занять несколько минут)...")
+# ---------- ЗАГРУЗКА МОДЕЛИ С ПРОСТЫМ device_map ----------
+print("Загрузка модели (будет виден прогресс)...")
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_PATH,
     quantization_config=quantization_config,
+    device_map="auto",                     # Позволяет transformers самому распределить
     torch_dtype=torch.float16,
-    device_map=device_map,
-    low_cpu_mem_usage=True
+    low_cpu_mem_usage=True,
+    local_files_only=True                  # Не ходим в интернет, только локальные файлы
 )
 print("Модель загружена!")
+print(f"Карта устройств: {model.hf_device_map}")
 
-
-model.eval()
-print("Модель загружена!\n")
-
-
-# ---------- ФУНКЦИЯ ДЛЯ ГЕНЕРАЦИИ ОТВЕТА ----------
-def ask_question(question, max_new_tokens=256):
-    """Отправляет вопрос модели Mixtral Instruct и возвращает ответ."""
-    # Mixtral Instruct использует формат: [INST] вопрос [/INST]
+# ---------- ТЕСТОВЫЙ ВОПРОС (один для начала) ----------
+def ask_question(question):
     prompt = f"[INST] {question} [/INST]"
-    inputs = tokenizer(prompt, return_tensors="pt").to(DEVICE)
-
+    inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
     with torch.no_grad():
-        outputs = model.generate(
-            **inputs,
-            max_new_tokens=max_new_tokens,
-            temperature=0.7,
-            do_sample=True,
-            pad_token_id=tokenizer.eos_token_id
-        )
-
-    # Декодируем только сгенерированную часть (после промпта)
+        outputs = model.generate(**inputs, max_new_tokens=100, temperature=0.7)
     input_length = inputs.input_ids.shape[1]
-    response = tokenizer.decode(outputs[0][input_length:], skip_special_tokens=True)
-    return response.strip()
+    return tokenizer.decode(outputs[0][input_length:], skip_special_tokens=True)
 
-
-# ---------- ТЕСТОВЫЕ ВОПРОСЫ (10 штук, разной сложности) ----------
-questions = [
-    "What is the capital of France?",
-    "Explain the concept of 'machine learning' in one sentence.",
-    "If a train travels 120 km in 2 hours, what is its average speed?",
-    "What does the following Python code print? `print(2 ** 3)`",
-    "Who wrote 'Romeo and Juliet'?",
-    "What is the primary function of a GPU?",
-    "Solve for x: 2x + 5 = 15",
-    "What is the difference between supervised and unsupervised learning?",
-    "Why is the sky blue?",
-    "If a store has a 20% off sale, and an item costs $50, what is the sale price?"
-]
-
-print("=" * 60)
-print("ЗАПУСК ТЕСТА: 10 вопросов из бенчмарка")
-print("=" * 60)
-
-for i, q in enumerate(questions, 1):
-    print(f"\nВопрос {i}: {q}")
-    print("Ответ: ", end="", flush=True)
-    start = time.time()
-    answer = ask_question(q)
-    elapsed = time.time() - start
-    print(f"{answer}\n(время: {elapsed:.1f} сек.)")
-    print("-" * 60)
-
-print("\n✅ Тест завершён.")
+print("\nТестовый вопрос: What is the capital of France?")
+print("Ответ:", ask_question("What is the capital of France?"))
