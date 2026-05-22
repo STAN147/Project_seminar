@@ -5,7 +5,7 @@
 """
 
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 import time
 
 # ---------- НАСТРОЙКИ ----------
@@ -16,17 +16,19 @@ print(f"Используется устройство: {DEVICE}")
 # ---------- ЗАГРУЗКА МОДЕЛИ ----------
 print("Загрузка токенизатора...")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
-
+quantization_config = BitsAndBytesConfig(
+    load_in_4bit=True,               # Включаем 4-битный режим
+    bnb_4bit_compute_dtype=torch.float16, # Вычисления в 16-битном формате
+)
 print("Загрузка модели (это может занять несколько минут)...")
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_PATH,
-    torch_dtype=torch.float16 if DEVICE == "cuda" else torch.float32,
-    device_map="auto" if DEVICE == "cuda" else None,
+    quantization_config=quantization_config,
+    torch_dtype=torch.float16,
+    device_map="auto",
     low_cpu_mem_usage=True
 )
 
-if DEVICE == "cpu":
-    model = model.to(DEVICE)
 
 model.eval()
 print("Модель загружена!\n")
