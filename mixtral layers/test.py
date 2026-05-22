@@ -22,15 +22,17 @@ quantization_config = BitsAndBytesConfig(
     bnb_4bit_quant_type="nf4"
 )
 
-# Загрузка модели с device_map="balanced"
+# Загрузка модели с ручным указанием лимитов памяти
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_PATH,
     quantization_config=quantization_config,
-    device_map="balanced",  # <-- Ключевое изменение!
+    device_map="auto",
+    max_memory={0: "22GiB", 1: "22GiB"}, # Указываем ~22 ГБ на каждую из двух карт
     torch_dtype=torch.float16,
     low_cpu_mem_usage=True,
     local_files_only=True
 )
+
 
 print(f"Карта устройств: {model.hf_device_map}") # Для проверки, куда что попало
 print("Модель загружена!")
