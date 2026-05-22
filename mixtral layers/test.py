@@ -9,13 +9,13 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 import time
 
 # ---------- НАСТРОЙКИ ----------
-MODEL_PATH = "../models/phi-tiny"  # путь к скачанной модели
+MODEL_PATH = "../models/mixtral"  # путь к скачанной модели
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Используется устройство: {DEVICE}")
 
 # ---------- ЗАГРУЗКА МОДЕЛИ ----------
 print("Загрузка токенизатора...")
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, use_fast=False)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
 quantization_config = BitsAndBytesConfig(
     load_in_4bit=True,               # Включаем 4-битный режим
     bnb_4bit_compute_dtype=torch.float16, # Вычисления в 16-битном формате
