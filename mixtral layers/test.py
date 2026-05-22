@@ -1,33 +1,50 @@
-#!/usr/bin/env python3
-"""
-Тестовый скрипт для проверки работы модели Mixtral-8x7B-Instruct-v0.1
-Загружает модель из локальной папки ./mixtral и задаёт 10 вопросов.
-"""
-
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-import time
+import gc
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, AutoConfig
+from accelerate import infer_auto_device_map
 
 # ---------- НАСТРОЙКИ ----------
-MODEL_PATH = "../models/mixtral"  # путь к скачанной модели
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"Используется устройство: {DEVICE}")
+MODEL_PATH = "../models/mixtral"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"  # Указываем обе карты
+print("Начинаем загрузку...")
 
-# ---------- ЗАГРУЗКА МОДЕЛИ ----------
-print("Загрузка токенизатора...")
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+# 1. Загружаем токенизатор (оставляем медленный для совместимости)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, use_fast=False)
+
+# 2. Настраиваем 4-битное квантование с флагами для экономии памяти
 quantization_config = BitsAndBytesConfig(
-    load_in_4bit=True,               # Включаем 4-битный режим
-    bnb_4bit_compute_dtype=torch.float16, # Вычисления в 16-битном формате
+    load_in_4bit=True,
+    bnb_4bit_compute_dtype=torch.float16,
+    bnb_4bit_use_double_quant=True,
+    bnb_4bit_quant_type="nf4"
 )
+
+# 3. Получаем конфигурацию модели и создаём "пустую" модель для расчётов
+config = AutoConfig.from_pretrained(MODEL_PATH)
+dummy_model = AutoModelForCausalLM.from_config(config)
+
+# 4. Явно создаём карту устройств: по 10 ГБ на каждую карту, остальное на CPU
+max_memory = {0: "100GiB", 1: "100GiB", "cpu": "128GiB"}
+device_map = infer_auto_device_map(
+    dummy_model,
+    max_memory=max_memory
+)
+
+# 5. Чистим память перед загрузкой
+del dummy_model
+gc.collect()
+torch.cuda.empty_cache()
+
+# 6. Загружаем модель с нашей готовой картой устройств
 print("Загрузка модели (это может занять несколько минут)...")
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_PATH,
     quantization_config=quantization_config,
     torch_dtype=torch.float16,
-    device_map="auto",
+    device_map=device_map,
     low_cpu_mem_usage=True
 )
+print("Модель загружена!")
 
 
 model.eval()
