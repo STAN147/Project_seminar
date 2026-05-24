@@ -1,0 +1,110 @@
+Loading features...
+
+Original features   : 9
+Polynomial features : 54
+
+Starting Leave-One-Out Cross Validation...
+
+Layer  0 | True:  -70.70 | Pred:  -56.22
+Layer  1 | True:  -70.10 | Pred:  -35.43
+Layer  2 | True:   -9.90 | Pred:  -47.17
+Layer  3 | True:  -58.00 | Pred:  -33.03
+Layer  4 | True:  -37.00 | Pred:  -37.53
+Layer  5 | True:  -13.00 | Pred:   -1.82
+Layer  6 | True:  -66.90 | Pred:  -34.40
+Layer  7 | True:   -6.70 | Pred:  -34.88
+Layer  8 | True:  -23.50 | Pred:  -27.60
+Layer  9 | True:  -39.60 | Pred:  -29.05
+Layer 10 | True:  -41.50 | Pred:  -27.73
+Layer 11 | True:  -11.60 | Pred:  -28.77
+Layer 12 | True:  -61.40 | Pred:  -19.58
+Layer 13 | True:  -46.50 | Pred:  -30.05
+Layer 14 | True:  -19.50 | Pred:  -25.88
+Layer 15 | True:   -1.20 | Pred:  -18.72
+Layer 16 | True:    1.70 | Pred:  -24.29
+Layer 17 | True:  -11.90 | Pred:  -26.62
+Layer 18 | True:    0.10 | Pred:   -9.83
+Layer 19 | True:    1.20 | Pred:   -8.50
+Layer 20 | True:   -4.50 | Pred:    1.42
+Layer 21 | True:    1.30 | Pred:  -18.25
+Layer 22 | True:    1.10 | Pred:    2.36
+Layer 23 | True:   -1.10 | Pred:   -3.69
+
+======================================================================
+LOOCV RESULTS
+======================================================================
+
+PEARSON  : 0.6002
+SPEARMAN : 0.6530
+
+======================================================================
+
+Training final model on ALL layers...
+
+
+======================================================================
+FULL TRAIN RESULTS
+======================================================================
+
+PEARSON  : 0.7624
+SPEARMAN : 0.7765
+======================================================================
+
+FEATURES
+----------------------------------------------------------------------
+CKA L1_Dist                              + 0.2526
+Cosine_Dist CKA                          - 0.2474
+Cosine_Dist Pearson                      - 0.1643
+L1_Dist Pearson                          + 0.1235
+CKA L_Inf                                + 0.1176
+L_Inf Pearson                            + 0.1139
+Pearson^2                                + 0.1013
+CKA^2                                    + 0.0941
+CKA Pearson                              + 0.0914
+L_Inf                                    + 0.0773
+L_Inf Router_Entropy                     + 0.0772
+Pearson Router_Entropy                   + 0.0753
+Cosine_Dist                              - 0.0751
+Pearson                                  + 0.0750
+Cosine_Dist Router_Entropy               - 0.0750
+Router_Entropy^2                         + 0.0685
+Router_Entropy                           + 0.0683
+L1_Dist                                  + 0.0674
+L1_Dist Router_Entropy                   + 0.0674
+CKA Router_Entropy                       + 0.0642
+CKA                                      + 0.0640
+L_Inf^2                                  + 0.0476
+MSE CKA                                  + 0.0417
+MSE Pearson                              + 0.0285
+Res_Contrib CKA                          - 0.0259
+Cosine_Dist L1_Dist                      + 0.0236
+MSE                                      + 0.0226
+MSE Router_Entropy                       + 0.0226
+L_Inf Var_Ratio                          + 0.0225
+Cosine_Dist L_Inf                        + 0.0215
+L1_Dist L_Inf                            + 0.0214
+Res_Contrib L1_Dist                      + 0.0212
+L1_Dist^2                                + 0.0207
+Res_Contrib L_Inf                        + 0.0206
+L1_Dist Var_Ratio                        + 0.0205
+Res_Contrib Pearson                      - 0.0201
+MSE Var_Ratio                            + 0.0186
+MSE L_Inf                                + 0.0184
+MSE Cosine_Dist                          + 0.0178
+MSE Res_Contrib                          + 0.0174
+MSE L1_Dist                              + 0.0171
+MSE^2                                    + 0.0169
+CKA Var_Ratio                            + 0.0166
+Cosine_Dist^2                            - 0.0151
+Res_Contrib^2                            + 0.0120
+Var_Ratio^2                              - 0.0091
+Res_Contrib                              - 0.0058
+Res_Contrib Router_Entropy               - 0.0058
+Cosine_Dist Var_Ratio                    - 0.0053
+Res_Contrib Var_Ratio                    + 0.0053
+Var_Ratio                                - 0.0051
+Var_Ratio Router_Entropy                 - 0.0051
+Var_Ratio Pearson                        - 0.0047
+Cosine_Dist Res_Contrib                  + 0.0039
+
+Process finished with exit code 0
