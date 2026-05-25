@@ -11,7 +11,7 @@ BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 
 model_path = os.path.abspath(os.path.join(BASE_DIR, "models", "phi-tiny"))
 dataset_path = os.path.abspath(os.path.join(BASE_DIR, "datasets", "dev_rand_split.jsonl"))
-benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "phi-tiny layers + metrics", "metric data", "metrics"))
+benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "phi-tiny layers + metrics + proxy", "metric data", "metrics"))
 
 os.makedirs(benchmark_dir, exist_ok=True)
 

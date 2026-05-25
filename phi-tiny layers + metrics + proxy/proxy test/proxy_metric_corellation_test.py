@@ -6,7 +6,7 @@ from scipy.stats import pearsonr, spearmanr
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 
-metrics_dir = os.path.abspath(os.path.join(BASE_DIR, "phi-tiny layers + metrics", "metric data", "metrics"))
+metrics_dir = os.path.abspath(os.path.join(BASE_DIR, "phi-tiny layers + metrics + proxy", "metric data", "metrics"))
 
 actual_drops = np.array([
     -65.5, -10.4, -7.2, -42.8, -7.2, -6.8, -7.5, -4.6, -6.1, -7.5,
