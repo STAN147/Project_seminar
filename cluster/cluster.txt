@@ -1,0 +1,7 @@
+Ssh mvolnov@ctddev.ifmo.ru -p 22081
+cd /mnt/tank/scratch/mvolnov/Project_seminar
+source myenv/bin/activate
+
+squeue
+
+srun -p gpu -w nike --cpus-per-task=10 --gres=gpu:1 --mem=20G --time=02:00:00 --pty bash
