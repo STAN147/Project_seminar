@@ -22,7 +22,7 @@ BASE_DIR = os.path.abspath(
 benchmark_dir = os.path.abspath(
     os.path.join(
         BASE_DIR,
-        "phi-tiny layers + metrics + proxy",
+        "phi-tiny metrics + layers + proxy",
         "metric data",
         "metrics"
     )
