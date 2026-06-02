@@ -4,11 +4,11 @@ import pandas as pd
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
+BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
 
 model_path = os.path.abspath(os.path.join(BASE_DIR, "models", "Qwen"))
 dataset_path = os.path.abspath(os.path.join(BASE_DIR, "datasets", "human-eval-v2-20210705.jsonl"))
-benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "Qwen1.5 metrics + layers + proxy", "accuracy data", "disabled layer stats human eval"))
+benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "commonsense", "Qwen1.5 metrics + layers + proxy", "accuracy data", "disabled layer stats human eval"))
 
 os.makedirs(benchmark_dir, exist_ok=True)
 tokenizer = AutoTokenizer.from_pretrained(model_path)
