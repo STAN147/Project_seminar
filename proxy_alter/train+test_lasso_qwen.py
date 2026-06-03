@@ -280,3 +280,68 @@ spearman_corr_siqa, p_value_siqa = spearmanr(y_siqa_numpy, y_pred_siqa)
 print(f"\n=== Финальные результаты проверки на Dataset Bias ===")
 print(f"Спирмен на независимом датасете SIQA: {spearman_corr_siqa:.3f} (p-value: {p_value_siqa:.3f})")
 print("=" * 60)
+
+benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "siqa", "Qwen metrics + layers", "metric data", "metrics"))
+
+ablations_file_path = os.path.abspath(os.path.join(BASE_DIR, "siqa", "Qwen metrics + layers", "accuracy data", "phi_tiny_siqa_ablations.csv"))
+df_ablations_siqa = pd.read_csv(ablations_file_path)
+# Вытаскиваем столбец дельт в numpy массив
+y_siqa_numpy = df_ablations_siqa["Ablation_Drop"].values
+num_layers_siqa = len(y_siqa_numpy)
+print(f"Количество слоёв в тестовой выборке SIQA: {num_layers_siqa}")
+
+# 2. Очищаем списки и собираем новые признаки из папки SIQA
+all_features_siqa = []
+feature_names_siqa = []
+
+for filename, feat_name in features_2d:
+    filepath = os.path.join(benchmark_dir, filename) # Читает из обновленного benchmark_dir (папка siqa)
+    df_mat = pd.read_csv(filepath, index_col=0)
+    matrix = df_mat.values
+    
+    # Инициализируем временные массивы под текущую размерность модели (32 слоя)
+    f_prev = np.zeros(num_layers_siqa)
+    f_next = np.zeros(num_layers_siqa)
+    f_first = np.zeros(num_layers_siqa)
+    f_last = np.zeros(num_layers_siqa)
+    f_mean = np.zeros(num_layers_siqa)
+    f_std = np.zeros(num_layers_siqa)
+    
+    for i in range(num_layers_siqa):
+        f_prev[i] = matrix[i, i - 1] if i > 0 else matrix[i, i]
+        f_next[i] = matrix[i, i + 1] if i < num_layers_siqa - 1 else matrix[i, i]
+        f_first[i] = matrix[i, 0]
+        f_last[i] = matrix[i, num_layers_siqa - 1]
+        f_mean[i] = np.mean(matrix[i, :])
+        f_std[i] = np.std(matrix[i, :])
+
+    all_features_siqa.extend([f_prev, f_next, f_first, f_last, f_mean, f_std])
+    feature_names_siqa.extend([
+        f"{feat_name}_prev", f"{feat_name}_next", 
+        f"{feat_name}_first", f"{feat_name}_last", 
+        f"{feat_name}_mean", f"{feat_name}_std"
+    ])
+
+# Читаем Router Entropy для SIQA
+df_ent_siqa = pd.read_csv(os.path.join(benchmark_dir, "metric_09_Router_Entropy.csv"), index_col=0)
+all_features_siqa.append(df_ent_siqa['Avg_Router_Entropy'].values)
+feature_names_siqa.append("Router_Entropy")
+
+# Формируем итоговую матрицу признаков для SIQA
+X_siqa_df = pd.DataFrame(np.column_stack(all_features_siqa), columns=feature_names_siqa)
+print(f"Размерность новой матрицы признаков SIQA: {X_siqa_df.shape}")
+
+# 3. Масштабируем признаки СТАРЫМ скейлером (обученным на Qwen Commonsense)
+# Никакого fit_transform, используем только transform()!
+X_siqa_scaled = scaler.transform(X_siqa_df)
+X_siqa_scaled_df = pd.DataFrame(X_siqa_scaled, columns=X_siqa_df.columns)
+
+# 4. Делаем предсказание нашей обученной формулой Lasso
+y_pred_siqa = lasso_model.predict(X_siqa_scaled_df)
+
+# 5. Считаем финальный Спирмен для проверки устойчивости к смене датасета
+spearman_corr_siqa, p_value_siqa = spearmanr(y_siqa_numpy, y_pred_siqa)
+
+print(f"\n=== Финальные результаты проверки на Dataset Bias ===")
+print(f"Спирмен на независимом датасете SIQA: {spearman_corr_siqa:.3f} (p-value: {p_value_siqa:.3f})")
+print("=" * 60)
