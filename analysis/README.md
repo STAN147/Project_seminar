@@ -6,3 +6,4 @@
 - `Qwen_analysis_siqa.ipynb` - анализ метрик на квене на siqa
 - `Phi_analysis_siqa.ipynb` - анализ метрик на фи тайни на siqa
 - `perf_comp_siqa.ipynb` - сравнительный анализ наших прокси-метрик на обеих моделях на siqa
+- `pres.ipynb` - причёсывание графиков к презентации проекта
