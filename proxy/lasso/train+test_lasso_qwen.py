@@ -13,8 +13,8 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import cross_val_predict
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
-benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "commonsense", "Qwen1.5 metrics + layers + proxy", "metric data", "metrics"))
+BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
+benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "commonsense", "Qwen1.5 metrics + layers", "metric data", "metrics"))
 
 ablation_drops = [
     -70.7, -70.1,  -9.9, -58.0, -37.0, -13.0, -66.9,  -6.7, 
@@ -130,7 +130,7 @@ y_pred_rf_loo = cross_val_predict(rf_model, X_scaled_df, y_numpy, cv=loo)
 corr_rf, _ = spearmanr(y_numpy, y_pred_rf_loo)
 print(f"3. Random Forest Spearman: {corr_rf:.3f}")
 
-benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "commonsense", "phi-tiny metrics + layers + proxy", "metric data", "metrics"))
+benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "commonsense", "phi-tiny metrics + layers", "metric data", "metrics"))
 
 ablation_drops = [
     -65.5, -10.4, -7.2, -42.8, -7.2, -6.8, -7.5, -4.6, -6.1, -7.5,
@@ -218,7 +218,7 @@ print(f"Спирмен на тестовой выборке (Phi-tiny): {spearma
 
 benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "siqa", "phi-tiny metrics + layers", "metric data", "metrics"))
 
-ablations_file_path = os.path.abspath(os.path.join(BASE_DIR, "siqa", "phi-tiny metrics + layers", "accuracy data", "phi_tiny_siqa_ablations.csv"))
+ablations_file_path = os.path.abspath(os.path.join(BASE_DIR, "siqa", "phi-tiny metrics + layers", "accuracy data", "ablations.csv"))
 df_ablations_siqa = pd.read_csv(ablations_file_path)
 # Вытаскиваем столбец дельт в numpy массив
 y_siqa_numpy = df_ablations_siqa["Ablation_Drop"].values
@@ -281,9 +281,9 @@ print(f"\n=== Финальные результаты проверки на Data
 print(f"Спирмен на независимом датасете SIQA: {spearman_corr_siqa:.3f} (p-value: {p_value_siqa:.3f})")
 print("=" * 60)
 
-benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "siqa", "Qwen metrics + layers", "metric data", "metrics"))
+benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "siqa", "Qwen1.5 metrics + layers", "metric data", "metrics"))
 
-ablations_file_path = os.path.abspath(os.path.join(BASE_DIR, "siqa", "Qwen metrics + layers", "accuracy data", "phi_tiny_siqa_ablations.csv"))
+ablations_file_path = os.path.abspath(os.path.join(BASE_DIR, "siqa", "Qwen1.5 metrics + layers", "accuracy data", "ablations.csv"))
 df_ablations_siqa = pd.read_csv(ablations_file_path)
 # Вытаскиваем столбец дельт в numpy массив
 y_siqa_numpy = df_ablations_siqa["Ablation_Drop"].values

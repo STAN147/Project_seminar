@@ -7,8 +7,8 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
 
 model_path = os.path.abspath(os.path.join(BASE_DIR, "models", "Qwen"))
-dataset_path = os.path.abspath(os.path.join(BASE_DIR, "datasets", "human-eval-v2-20210705.jsonl"))
-benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "commonsense", "Qwen1.5 metrics + layers + proxy", "accuracy data", "disabled layer stats human eval"))
+dataset_path = os.path.abspath(os.path.join(BASE_DIR, "datasets", "dev_rand_split.jsonl"))
+benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "commonsense", "Qwen1.5 metrics + layers", "accuracy data", "disabled layer stats"))
 
 os.makedirs(benchmark_dir, exist_ok=True)
 tokenizer = AutoTokenizer.from_pretrained(model_path)
@@ -97,7 +97,7 @@ def test_model(model, data, limit, log_filename, layer_name):
         log_and_print("=" * 50)
     return accuracy
 
-baseline_accuracy = 70.7
+baseline_accuracy = 70.7 
 
 target_layers = range(24)
 results = {}
@@ -109,7 +109,7 @@ for layer_idx in target_layers:
     results[layer_idx] = acc
     handle.remove()
     torch.cuda.empty_cache()
-summary_text = "\n" + "=" * 60 + "\nИТОГОВАЯ СВОДКА РЕЗУЛЬТАТОВ\n" + "=" * 60
+summary_text = "\n" + "=" * 60 + "\nИТОГОВАЯ СВОДКА РЕЗУЛЬТАТОВ\n" + "=" * 60 
 summary_text += f"\nОригинальная модель (известный бейслайн): {baseline_accuracy:.1f}%\n\nОтключение слоёв:\n"
 for layer_idx, acc in results.items():
     diff = acc - baseline_accuracy

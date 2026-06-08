@@ -8,29 +8,21 @@ import torch.optim as optim
 
 from scipy.stats import pearsonr, spearmanr
 
-# ============================================================
-# PATHS
-# ============================================================
-
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 BASE_DIR = os.path.abspath(
-    os.path.join(SCRIPT_DIR, "..", "..", "..")
+    os.path.join(SCRIPT_DIR, "..", "..")
 )
 
 benchmark_dir = os.path.abspath(
     os.path.join(
         BASE_DIR,
         "commonsense",
-        "Qwen1.5 metrics + layers + proxy",
+        "Qwen1.5 metrics + layers",
         "metric data",
         "metrics"
     )
 )
-
-# ============================================================
-# TARGETS
-# ============================================================
 
 ablation_drops = [
     -70.7, -70.1,  -9.9, -58.0, -37.0, -13.0,
@@ -38,12 +30,6 @@ ablation_drops = [
     -61.4, -46.5, -19.5,  -1.2,   1.7, -11.9,
       0.1,   1.2,  -4.5,   1.3,   1.1,  -1.1
 ]
-
-# ============================================================
-# FEATURES
-# ============================================================
-
-print("Сборка датасета из CSV-файлов...")
 
 features_2d = [
     ("metric_01_MSE.csv", "MSE"),
@@ -81,10 +67,6 @@ for col_idx, (filename, feat_name) in enumerate(features_2d):
 
     X_numpy[23, col_idx] = matrix[22, 23]
 
-# ============================================================
-# ROUTER ENTROPY
-# ============================================================
-
 feature_names.append("Router_Entropy")
 
 df_ent = pd.read_csv(
@@ -97,43 +79,19 @@ df_ent = pd.read_csv(
 
 X_numpy[:, 8] = df_ent["Avg_Router_Entropy"].values
 
-print(
-    f"Успешно загружено "
-    f"{num_layers} слоев "
-    f"и {num_features} признаков.\n"
-)
-
-# ============================================================
-# DATA
-# ============================================================
-
 X_all = X_numpy
 
 y_all = np.array(ablation_drops)
 
-# ============================================================
-# LOOCV
-# ============================================================
-
-print("Starting Leave-One-Out Cross Validation...\n")
-
 loocv_predictions = []
 
 for test_idx in range(num_layers):
-
-    # ========================================================
-    # SPLIT
-    # ========================================================
 
     X_train = np.delete(X_all, test_idx, axis=0)
     y_train = np.delete(y_all, test_idx)
 
     X_test = X_all[test_idx:test_idx + 1]
     y_test = y_all[test_idx]
-
-    # ========================================================
-    # TORCH
-    # ========================================================
 
     X_train = torch.tensor(
         X_train,
@@ -149,13 +107,6 @@ for test_idx in range(num_layers):
         X_test,
         dtype=torch.float32
     )
-
-    # ========================================================
-    # NORMALIZATION
-    # IMPORTANT:
-    # FIT ONLY ON TRAIN
-    # ========================================================
-
     X_mean = X_train.mean(dim=0)
     X_std = X_train.std(dim=0) + 1e-8
 
@@ -167,24 +118,13 @@ for test_idx in range(num_layers):
 
     y_train_norm = (y_train - y_mean) / y_std
 
-    # ========================================================
-    # MODEL
-    # ========================================================
-
     model = nn.Linear(num_features, 1)
-
     criterion = nn.MSELoss()
-
     optimizer = optim.Adam(
         model.parameters(),
         lr=0.01,
         weight_decay=0.1
     )
-
-    # ========================================================
-    # TRAIN
-    # ========================================================
-
     epochs = 3000
 
     for epoch in range(epochs):
@@ -201,61 +141,24 @@ for test_idx in range(num_layers):
         loss.backward()
 
         optimizer.step()
-
-    # ========================================================
-    # PREDICT
-    # ========================================================
-
     model.eval()
-
     with torch.no_grad():
-
         pred_norm = model(X_test_norm)
-
         pred = (pred_norm * y_std) + y_mean
-
     loocv_predictions.append(
         pred.item()
     )
 
-    print(
-        f"Layer {test_idx:2d} | "
-        f"True: {y_test:7.2f} | "
-        f"Pred: {pred.item():7.2f}"
-    )
-
-# ============================================================
-# LOOCV RESULTS
-# ============================================================
-
 loocv_predictions = np.array(loocv_predictions)
-
 loocv_pearson, _ = pearsonr(
     loocv_predictions,
     y_all
 )
-
 loocv_spearman, _ = spearmanr(
     loocv_predictions,
     y_all
 )
 
-print("\n" + "=" * 70)
-
-print("LOOCV RESULTS")
-
-print("=" * 70)
-
-print(f"\nPEARSON  : {loocv_pearson:.4f}")
-print(f"SPEARMAN : {loocv_spearman:.4f}")
-
-print("=" * 70)
-
-# ============================================================
-# TRAIN FINAL MODEL ON ALL DATA
-# ============================================================
-
-print("\nTraining final model on ALL layers...\n")
 
 X = torch.tensor(
     X_all,
@@ -267,7 +170,6 @@ y = torch.tensor(
     dtype=torch.float32
 ).view(-1, 1)
 
-# normalization
 X_mean = X.mean(dim=0)
 X_std = X.std(dim=0) + 1e-8
 
@@ -277,10 +179,6 @@ y_mean = y.mean()
 y_std = y.std() + 1e-8
 
 y_norm = (y - y_mean) / y_std
-
-# ============================================================
-# FINAL MODEL
-# ============================================================
 
 model = nn.Linear(num_features, 1)
 
@@ -309,10 +207,6 @@ for epoch in range(epochs):
 
     optimizer.step()
 
-# ============================================================
-# FULL TRAIN RESULTS
-# ============================================================
-
 model.eval()
 
 with torch.no_grad():
@@ -335,46 +229,18 @@ train_spearman, _ = spearmanr(
     y_all
 )
 
-print("\n" + "=" * 70)
-
-print("FULL TRAIN RESULTS")
-
-print("=" * 70)
-
 print(f"\nPEARSON  : {train_pearson:.4f}")
 print(f"SPEARMAN : {train_spearman:.4f}")
-
-print("=" * 70)
-
-# ============================================================
-# FEATURE IMPORTANCE
-# ============================================================
 
 weights = model.weight.data.numpy().flatten()
 
 bias = model.bias.data.item()
-
-print("\nFEATURE IMPORTANCE")
-print("-" * 70)
 
 feature_importance = sorted(
     zip(feature_names, weights),
     key=lambda x: abs(x[1]),
     reverse=True
 )
-
-for name, weight in feature_importance:
-
-    sign = "+" if weight > 0 else "-"
-
-    print(
-        f"{name:20s} "
-        f"{sign} {abs(weight):.4f}"
-    )
-
-# ============================================================
-# PROXY FORMULA
-# ============================================================
 
 formula = "Proxy = "
 
@@ -392,11 +258,4 @@ formula += (
     f"{'+' if bias > 0 else '-'} "
     f"{abs(bias):.4f} (Bias)"
 )
-
-print("\n" + "=" * 70)
-
-print("PROXY METRIC FORMULA")
-
-print("=" * 70)
-
 print(formula)

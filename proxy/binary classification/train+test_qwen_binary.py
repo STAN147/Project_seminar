@@ -17,8 +17,8 @@ def get_top_5_overlap(y_true, y_pred_prob):
     return overlap, actual_top5, predicted_top5
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
-benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "commonsense", "Qwen1.5 metrics + layers + proxy", "metric data", "metrics"))
+BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
+benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "commonsense", "Qwen1.5 metrics + layers", "metric data", "metrics"))
 
 ablation_drops = [
     -70.7, -70.1,  -9.9, -58.0, -37.0, -13.0, -66.9,  -6.7, 
@@ -114,7 +114,7 @@ print(f"Предсказанные:    {sorted(list(pred_qwen))}")
 # =====================================================================
 # БЛОК 2: ТЕСТИРОВАНИЕ НА PHI-TINY (COMMONSENSE)
 # =====================================================================
-benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "commonsense", "phi-tiny metrics + layers + proxy", "metric data", "metrics"))
+benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "commonsense", "phi-tiny metrics + layers", "metric data", "metrics"))
 
 ablation_drops_phi = [
     -65.5, -10.4, -7.2, -42.8, -7.2, -6.8, -7.5, -4.6, -6.1, -7.5,
@@ -177,7 +177,7 @@ print(f"Предсказанные:    {sorted(list(pred_phi))}")
 # БЛОК 3: ТЕСТИРОВАНИЕ НА PHI-TINY (SIQA)
 # =====================================================================
 benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "siqa", "phi-tiny metrics + layers", "metric data", "metrics"))
-ablations_file_path = os.path.abspath(os.path.join(BASE_DIR, "siqa", "phi-tiny metrics + layers", "accuracy data", "phi_tiny_siqa_ablations.csv"))
+ablations_file_path = os.path.abspath(os.path.join(BASE_DIR, "siqa", "phi-tiny metrics + layers", "accuracy data", "ablations.csv"))
 df_ablations_siqa_phi = pd.read_csv(ablations_file_path)
 y_siqa_numpy_phi = df_ablations_siqa_phi["Ablation_Drop"].values
 num_layers_siqa_phi = len(y_siqa_numpy_phi)
@@ -231,8 +231,8 @@ print(f"Предсказанные:    {sorted(list(pred_siqa_phi))}")
 # =====================================================================
 # БЛОК 4: ТЕСТИРОВАНИЕ НА QWEN (SIQA)
 # =====================================================================
-benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "siqa", "Qwen metrics + layers", "metric data", "metrics"))
-ablations_file_path = os.path.abspath(os.path.join(BASE_DIR, "siqa", "Qwen metrics + layers", "accuracy data", "phi_tiny_siqa_ablations.csv"))
+benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "siqa", "Qwen1.5 metrics + layers", "metric data", "metrics"))
+ablations_file_path = os.path.abspath(os.path.join(BASE_DIR, "siqa", "Qwen1.5 metrics + layers", "accuracy data", "ablations.csv"))
 df_ablations_siqa_qwen = pd.read_csv(ablations_file_path)
 y_siqa_numpy_qwen = df_ablations_siqa_qwen["Ablation_Drop"].values
 num_layers_siqa_qwen = len(y_siqa_numpy_qwen)
