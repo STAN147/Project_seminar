@@ -1,0 +1,9 @@
+torch
+transformers
+pandas
+numpy
+tqdm
+scipy
+einops
+bitsandbytes
+accelerate

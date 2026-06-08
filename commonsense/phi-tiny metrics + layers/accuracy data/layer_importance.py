@@ -14,19 +14,14 @@ df = pd.read_json(dataset_path, lines=True)
 data = df.to_dict('records')
 limit = len(data)
 
-print("Загружаем модель (один раз)...")
 model = AutoModelForCausalLM.from_pretrained(
     model_path,
     device_map={"": 0},
     dtype=torch.float16,
 )
 model.eval()
-print("Модель загружена!\n")
 
 def disable_layer(model, layer_idx):
-    """
-    Заменяет указанный слой на identity-функцию (пропускает вход)
-    """
     original_forward = model.model.layers[layer_idx].forward
 
     def identity_forward(hidden_states, *args, **kwargs):
@@ -38,9 +33,6 @@ def disable_layer(model, layer_idx):
     return original_forward
 
 def restore_layer(model, layer_idx, original_forward):
-    """
-    Восстанавливает оригинальный forward слой
-    """
     model.model.layers[layer_idx].forward = original_forward
 
 def test_model(model, data, limit, layer_name="Без отключения"):
