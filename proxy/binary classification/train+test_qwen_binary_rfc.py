@@ -2,8 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LogisticRegressionCV
-from sklearn.model_selection import LeaveOneOut
+from sklearn.ensemble import RandomForestClassifier
 
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -110,21 +109,15 @@ scaler = StandardScaler()
 x_train_scaled = scaler.fit_transform(x_train)
 x_train_scaled_df = pd.DataFrame(x_train_scaled, columns=x_train.columns)
 
-loo = LeaveOneOut()
-clf_model = LogisticRegressionCV(
-    cv=loo,
-    penalty="l1",
-    solver="liblinear",
-    random_state=42,
-    max_iter=10000,
-    class_weight='balanced'
+clf_model = RandomForestClassifier(
+    n_estimators=100, max_depth=2, class_weight="balanced", random_state=42
 )
 clf_model.fit(x_train_scaled_df, y_train_class)
 
-coefs = pd.Series(clf_model.coef_[0], index=x_train_scaled_df.columns)
-important_features = coefs[coefs != 0]
-important_features = important_features / important_features.abs().sum()
-important_features = important_features.sort_values(key=abs, ascending=False)
+coefs = pd.Series(clf_model.feature_importances_, index=x_train_scaled_df.columns)
+important_features = coefs[coefs > 0]
+important_features = important_features / important_features.sum()
+important_features = important_features.sort_values(ascending=False)
 
 print(important_features)
 print()
@@ -138,12 +131,57 @@ for name, info in datasets_info.items():
     print(f"Угадано из топ-5 на {name}: {overlap}")
 
 '''
-L1_Dist_std       -0.828519
-Cosine_Dist_std    0.171481
+L1_Dist_next         1.065018e-01
+MSE_next             6.972597e-02
+L1_Dist_std          6.012531e-02
+Var_Ratio_mean       5.889825e-02
+Res_Contrib_last     4.307911e-02
+MSE_first            4.076190e-02
+CKA_first            4.006051e-02
+Res_Contrib_mean     3.689521e-02
+L1_Dist_last         3.249329e-02
+L1_Dist_first        3.001142e-02
+Cosine_Dist_std      2.991887e-02
+L1_Dist_mean         2.775576e-02
+Var_Ratio_last       2.722391e-02
+L1_Dist_prev         2.623505e-02
+Cosine_Dist_first    2.607552e-02
+Pearson_prev         2.556134e-02
+Var_Ratio_first      2.459631e-02
+Pearson_last         2.422640e-02
+Var_Ratio_std        2.419631e-02
+CKA_last             2.418452e-02
+L_Inf_first          2.233066e-02
+Pearson_first        1.828791e-02
+Cosine_Dist_last     1.583333e-02
+Res_Contrib_std      1.453571e-02
+Res_Contrib_prev     1.279177e-02
+CKA_std              1.154588e-02
+Pearson_std          1.085094e-02
+Cosine_Dist_prev     1.002881e-02
+L_Inf_std            1.000000e-02
+L_Inf_last           9.872680e-03
+L_Inf_prev           9.771911e-03
+CKA_next             9.657611e-03
+Router_Entropy       9.127453e-03
+Var_Ratio_next       8.882470e-03
+L_Inf_mean           8.183913e-03
+Res_Contrib_first    8.095238e-03
+Res_Contrib_next     5.630987e-03
+Var_Ratio_prev       5.121573e-03
+Cosine_Dist_next     4.422041e-03
+Cosine_Dist_mean     3.214286e-03
+CKA_prev             2.904762e-03
+CKA_mean             2.901099e-03
+L_Inf_next           2.302772e-03
+MSE_prev             2.046512e-03
+Pearson_next         2.046512e-03
+Pearson_mean         1.086420e-03
+MSE_mean             1.066328e-17
 dtype: float64
 
-Угадано из топ-5 на Qwen + Commonsense: 4
-Угадано из топ-5 на Phi-Tiny + Commonsense: 2
+Угадано из топ-5 на Qwen + Commonsense: 5
+Угадано из топ-5 на Phi-Tiny + Commonsense: 3
 Угадано из топ-5 на Qwen + SIQA: 3
-Угадано из топ-5 на Phi-Tiny + SIQA: 2
+Угадано из топ-5 на Phi-Tiny + SIQA: 1
 '''

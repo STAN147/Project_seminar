@@ -59,6 +59,5 @@ for i in range(limit):
     print(f"Вопрос {i+1:02d}/{limit} | Ответ модели: {answer[0] if answer else '-'} | Правильный: {correct_answer}")
 
 accuracy = (correct / limit) * 100
-print(f"\n\n--- ИТОГОВЫЕ РЕЗУЛЬТАТЫ ---")
 print(f"Правильных ответов: {correct} из {limit}")
-print(f"Точность (Accuracy): {accuracy:.1f}%")
+print(f"Точность: {accuracy:.1f}%")

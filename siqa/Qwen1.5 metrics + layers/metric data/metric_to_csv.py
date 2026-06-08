@@ -14,25 +14,20 @@ dataset_path = os.path.abspath(os.path.join(BASE_DIR, "datasets", "siqa_500.csv"
 benchmark_dir = os.path.abspath(os.path.join(BASE_DIR, "siqa", "Qwen metrics + layers", "metric data", "metrics"))
 
 os.makedirs(benchmark_dir, exist_ok=True)
-
-print("1. Подготовка данных...")
 tokenizer = AutoTokenizer.from_pretrained(model_path)
 
-# Загрузка из CSV-файла вместо JSON Lines
 df = pd.read_csv(dataset_path)
 data = df.to_dict('records')
 limit = len(data)
 
-print("2. Загрузка Phi-tiny-MoE (Хак без Flash Attention)...")
 quantization_config = BitsAndBytesConfig(
     load_in_4bit=True,
     bnb_4bit_compute_dtype=torch.float16,
 )
 
-# 2. Загружаем модель, принудительно заталкивая ВСЕ слои на GPU 0
 model = AutoModelForCausalLM.from_pretrained(
     model_path,
-    device_map={"": 0}, # Жестко фиксируем на GPU, запрещая offload на CPU/диск
+    device_map={"": 0},
     torch_dtype=torch.float16,
     quantization_config=quantization_config,
 )
@@ -51,7 +46,6 @@ def calculate_cka(x, y):
     return (dot_prod / (norm_x * norm_y)).item()
 
 num_layers = model.config.num_hidden_layers
-print(f"Обнаружено {num_layers} скрытых слоев. Создаем матрицы {num_layers}x{num_layers}...")
 
 sum_mse = np.zeros((num_layers, num_layers))
 sum_cos = np.zeros((num_layers, num_layers))
@@ -64,43 +58,31 @@ sum_pearson = np.zeros((num_layers, num_layers))
 
 sum_entropy = None 
 
-print(f"\n3. Начинаем расчет ВСЕХ метрик ({limit} вопросов)...")
+print(f"\n3. Начинаем расчет метрик ({limit} вопросов)...")
 
 for n in tqdm(range(limit)):
     item = data[n]
-    
-    # Извлечение структуры под формат колонок SIQA
     context = item.get('context', '')
     question = item.get('question', '')
     texts = [item.get('answerA', ''), item.get('answerB', ''), item.get('answerC', '')]
     labels = ['A', 'B', 'C']
-
-    # Сборка промпта с учетом ситуативного контекста
     prompt = f"Context: {context}\nQuestion: {question}\nOptions:\n"
     for label, text in zip(labels, texts):
         prompt += f"{label}. {text}\n"
-
     messages = [{"role": "system", "content": "You are a logical AI."}, {"role": "user", "content": prompt}]
     text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     inputs = tokenizer([text], return_tensors="pt").to(model.device)
-
     with torch.no_grad():
         outputs = model(**inputs, output_hidden_states=True, output_router_logits=True, use_cache=False)
-
     hidden_states = outputs.hidden_states
-
-    # Расчет энтропии роутеров для MoE слоев
     if hasattr(outputs, 'router_logits') and outputs.router_logits is not None:
         num_routers = len(outputs.router_logits)
         if sum_entropy is None:
             sum_entropy = np.zeros(num_routers)
-            
         for r_idx, router_logit in enumerate(outputs.router_logits):
             probs = F.softmax(router_logit[0].float(), dim=-1)
             entropy = -(probs * torch.log(probs + 1e-9)).sum(dim=-1).mean().item()
             sum_entropy[r_idx] += entropy
-
-    # Попарное сравнение геометрии слоев
     for i in range(num_layers):
         h_i = hidden_states[i + 1].float()
         var_i = torch.var(h_i)
@@ -134,8 +116,6 @@ for n in tqdm(range(limit)):
     del outputs, hidden_states
     torch.cuda.empty_cache()
 
-print("\n4. Усреднение и сохранение CSV таблиц...")
-
 def save_matrix_to_csv(matrix, filename):
     filepath = os.path.join(benchmark_dir, filename)
     df_matrix = pd.DataFrame(matrix / limit)
@@ -161,7 +141,3 @@ save_matrix_to_csv(sum_pearson, "metric_08_Pearson_Correlation.csv")
 
 if sum_entropy is not None:
     save_vector_to_csv(sum_entropy, "metric_09_Router_Entropy.csv")
-else:
-    print("Внимание: Модель не вернула router_logits, файл энтропии не создан.")
-
-print(f"\nАнализ завершен! CSV файлы успешно сохранены в папке {benchmark_dir}.")

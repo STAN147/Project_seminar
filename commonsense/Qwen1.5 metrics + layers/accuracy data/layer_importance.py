@@ -109,7 +109,7 @@ for layer_idx in target_layers:
     results[layer_idx] = acc
     handle.remove()
     torch.cuda.empty_cache()
-summary_text = "\n" + "=" * 60 + "\nИТОГОВАЯ СВОДКА РЕЗУЛЬТАТОВ\n" + "=" * 60 
+summary_text = ""
 summary_text += f"\nОригинальная модель (известный бейслайн): {baseline_accuracy:.1f}%\n\nОтключение слоёв:\n"
 for layer_idx, acc in results.items():
     diff = acc - baseline_accuracy
@@ -118,5 +118,3 @@ for layer_idx, acc in results.items():
 print(summary_text)
 with open(os.path.join(benchmark_dir, "summary.txt"), "w", encoding="utf-8") as f:
     f.write(summary_text)
-
-print(f"\nВсе логи успешно сохранены в папку: {benchmark_dir}")

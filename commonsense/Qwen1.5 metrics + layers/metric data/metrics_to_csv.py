@@ -142,4 +142,3 @@ save_matrix_to_csv(sum_var_ratio, "metric_07_Variance_Ratio.csv")
 save_matrix_to_csv(sum_pearson, "metric_08_Pearson_Correlation.csv")
 if sum_entropy is not None:
     save_vector_to_csv(sum_entropy, "metric_09_Router_Entropy.csv")
-print(f"\nАнализ завершен! 9 CSV файлов успешно сохранены в папке {benchmark_dir}.")
