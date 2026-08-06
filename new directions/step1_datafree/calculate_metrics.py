@@ -9,7 +9,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 
-MODELS = ["Qwen", "phi-tiny", "gemma"]
+MODELS = ["gemma"]
 
 def get_num_layers(model):
     config = model.config
@@ -34,11 +34,11 @@ def get_num_layers(model):
     if max_layer >= 0:
         return max_layer + 1
 
-def compute_layer_metrics(model, layer_idx, compute_device):
+def compute_layer_metrics(model, layer_idx, compute_device, is_moe):
     layer_signature = f".{layer_idx}."
     
     # Списки для базовых метрик
-    spectral_norms, frob_norms, eff_ranks = [], [], []
+    spectral_norms, frob_norms, eff_ranks = [], [] , []
     
     # Контейнеры для M10 и M11
     router_metrics = {
@@ -49,7 +49,7 @@ def compute_layer_metrics(model, layer_idx, compute_device):
     }
     svd_entropy_o_proj = 0.0
     
-    # Флаги, чтобы взять только первый найденный тензор (как в исходном коде: possible_keys[0])
+    # Флаги, чтобы взять только первый найденный тензор (как в исходном коде)
     router_found = False
     svd_found = False
     
@@ -79,8 +79,8 @@ def compute_layer_metrics(model, layer_idx, compute_device):
             except Exception:
                 pass
                 
-            # --- M10: Router Weights ---
-            if not router_found and ("gate" in name or "router" in name):
+            # --- M10: Router Weights (Только если модель MoE) ---
+            if is_moe and not router_found and ("gate" in name or "router" in name) and "gate_proj" not in name:
                 norms = torch.norm(W, p=2, dim=1)
                 if len(norms) > 1:
                     router_metrics["Router_Norm_Var"] = torch.var(norms).item()
@@ -109,6 +109,7 @@ def main():
             print(f"Путь не найден, пропускаем: {model_path}")
             continue
             
+        print("="*60)
         print(f"Обработка модели: {model_name}")
         model = AutoModelForCausalLM.from_pretrained(
             model_path, 
@@ -118,13 +119,18 @@ def main():
             low_cpu_mem_usage=True
         )
         
+        # Детектор архитектуры (MoE или Dense) с исключением gate_proj
+        is_moe = any(("gate" in name or "router" in name) and "gate_proj" not in name for name, _ in model.named_parameters())
+        arch_type = "MoE (Метрики роутера будут вычислены)" if is_moe else "Dense (Метрики роутера заполнятся нулями)"
+        print(f"Архитектура: {arch_type}")
+        
         num_layers = get_num_layers(model)
         
         m_spec, m_frob, m_erank = [], [], []
         m_svd, m_router = [], []
         
         for layer_idx in range(num_layers):
-            metrics = compute_layer_metrics(model, layer_idx, compute_device)
+            metrics = compute_layer_metrics(model, layer_idx, compute_device, is_moe)
             
             m_spec.append(metrics['Spectral_Norm'])
             m_frob.append(metrics['Frobenius_Norm'])
@@ -142,7 +148,7 @@ def main():
         out_dir = os.path.join(SCRIPT_DIR, model_name)
         os.makedirs(out_dir, exist_ok=True)
         
-        # Сохраняем все 5 файлов (названия стандартизированы)
+        # Сохраняем все 5 файлов
         pd.DataFrame(m_router, index=range(num_layers)).rename_axis('Layer').to_csv(os.path.join(out_dir, "metric_10_Router_Weights.csv"))
         pd.DataFrame({'SVD_Entropy_O_Proj': m_svd}, index=range(num_layers)).rename_axis('Layer').to_csv(os.path.join(out_dir, "metric_11_SVD_Entropy.csv"))
         pd.DataFrame({'Spectral_Norm': m_spec}, index=range(num_layers)).rename_axis('Layer').to_csv(os.path.join(out_dir, "metric_14_Spectral_Norm.csv"))
