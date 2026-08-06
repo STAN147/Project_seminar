@@ -24,7 +24,6 @@ def setup_directories():
         task_dir = os.path.join(SCRIPT_DIR, task)
         paths[task] = {
             "ablations": os.path.join(task_dir, "ablations"),
-            "targets": os.path.join(task_dir, "targets"),
             "metrics": os.path.join(task_dir, "metrics"),
             "data-free": os.path.join(task_dir, "data-free")
         }
@@ -95,7 +94,7 @@ def load_dataset(task):
                 samples.append({"prompt": instruct_prompt, "target": str(row.get('label', '1')).strip()})
     return samples[:MAX_SAMPLES]
 
-def get_loss_and_logits(model, tokenizer, prompt, target):
+def get_logits_and_acc(model, tokenizer, prompt, target):
     messages = [{"role": "user", "content": prompt}]
     prompt_formatted = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     inputs = tokenizer(prompt_formatted, return_tensors="pt").to(model.device)
@@ -103,15 +102,17 @@ def get_loss_and_logits(model, tokenizer, prompt, target):
     target_ids = tokenizer(target, return_tensors="pt", add_special_tokens=False).input_ids.to(model.device)
     full_input_ids = torch.cat([inputs.input_ids, target_ids], dim=-1)
     target_len = target_ids.shape[1]
+    
     with torch.no_grad():
         outputs = model(full_input_ids)
         logits = outputs.logits
         shift_logits = logits[..., -target_len-1:-1, :].contiguous()
         shift_labels = target_ids.contiguous()
-        loss = F.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+        
         pred_tokens = torch.argmax(shift_logits, dim=-1)
         is_correct = torch.equal(pred_tokens, shift_labels)
-    return loss.item(), logits, is_correct
+        
+    return logits, is_correct
 
 class AblationHook:
     def __init__(self, layer):
@@ -146,38 +147,30 @@ def run_task_pipeline(model, tokenizer, task_name, samples):
     norm_layer = get_norm(model)
     lm_head = get_lm_head(model)
     num_layers = len(layers)
-    baseline_losses = []
+    
     baseline_correct = 0
     for sample in tqdm(samples, desc="Baseline"):
-        loss, _, is_correct = get_loss_and_logits(model, tokenizer, sample["prompt"], sample["target"])
-        baseline_losses.append(loss)
+        _, is_correct = get_logits_and_acc(model, tokenizer, sample["prompt"], sample["target"])
         if is_correct:
             baseline_correct += 1
+            
     baseline_acc = baseline_correct / len(samples)
-    baseline_ppl = np.exp(np.mean(baseline_losses))
     ablations_data = [{'Layer': 'Baseline', 'Accuracy': baseline_acc}]
-    ppl_data = []
+    
     for i in tqdm(range(num_layers), desc="Ablating Layers"):
         hook = AblationHook(layers[i])
-        layer_losses = []
         layer_correct = 0
         for sample in samples:
-            loss, _, is_correct = get_loss_and_logits(model, tokenizer, sample["prompt"], sample["target"])
-            layer_losses.append(loss)
+            _, is_correct = get_logits_and_acc(model, tokenizer, sample["prompt"], sample["target"])
             if is_correct:
                 layer_correct += 1
         hook.remove()
+        
         acc = layer_correct / len(samples)
-        ppl = np.exp(np.mean(layer_losses))
         ablations_data.append({'Layer': i, 'Accuracy': acc})
-        ppl_data.append({
-            'Layer': i,
-            'Baseline_PPL': baseline_ppl,
-            'Ablated_PPL': ppl,
-            'PPL_Degradation': ppl - baseline_ppl
-        })
+        
     pd.DataFrame(ablations_data).to_csv(os.path.join(PATHS[task_name]['ablations'], "ablations.csv"), index=False)
-    pd.DataFrame(ppl_data).to_csv(os.path.join(PATHS[task_name]['targets'], "PPL_drops.csv"), index=False)
+    
     all_hiddens = {i: [] for i in range(num_layers + 1)}
     with torch.no_grad():
         for sample in tqdm(samples, desc="Extracting Hiddens"):
@@ -188,9 +181,11 @@ def run_task_pipeline(model, tokenizer, task_name, samples):
             for i in range(num_layers + 1):
                 h = outputs.hidden_states[i][0, -1, :].float().cpu().numpy()
                 all_hiddens[i].append(h)
+                
     avg_hiddens = {i: np.mean(all_hiddens[i], axis=0) for i in range(num_layers + 1)}
     m1_mse, m2_cos, m3_res, m4_cka = [], [], [], []
     m5_l1, m6_linf, m7_var, m8_pear = [], [], [], []
+    
     for i in range(num_layers):
         r_m1, r_m2, r_m3, r_m4 = {'Layer': i}, {'Layer': i}, {'Layer': i}, {'Layer': i}
         r_m5, r_m6, r_m7, r_m8 = {'Layer': i}, {'Layer': i}, {'Layer': i}, {'Layer': i}
@@ -207,6 +202,7 @@ def run_task_pipeline(model, tokenizer, task_name, samples):
             r_m8[str(j)] = pearsonr(hi, hj)[0] if np.std(hi)>0 and np.std(hj)>0 else 0
         m1_mse.append(r_m1); m2_cos.append(r_m2); m3_res.append(r_m3); m4_cka.append(r_m4)
         m5_l1.append(r_m5); m6_linf.append(r_m6); m7_var.append(r_m7); m8_pear.append(r_m8)
+        
     m_dir = PATHS[task_name]['metrics']
     pd.DataFrame(m1_mse).to_csv(os.path.join(m_dir, "metric_01_MSE.csv"), index=False)
     pd.DataFrame(m2_cos).to_csv(os.path.join(m_dir, "metric_02_Cosine_Distance.csv"), index=False)
@@ -216,10 +212,12 @@ def run_task_pipeline(model, tokenizer, task_name, samples):
     pd.DataFrame(m6_linf).to_csv(os.path.join(m_dir, "metric_06_L_Infinity.csv"), index=False)
     pd.DataFrame(m7_var).to_csv(os.path.join(m_dir, "metric_07_Variance_Ratio.csv"), index=False)
     pd.DataFrame(m8_pear).to_csv(os.path.join(m_dir, "metric_08_Pearson_Correlation.csv"), index=False)
+    
     num_eval_samples = 20
     eval_samples = samples[:num_eval_samples]
     kl_accum = np.zeros(num_layers)
     ll_accum = np.zeros(num_layers)
+    
     for sample in tqdm(eval_samples, desc="KL & LogitLens (Batch)"):
         messages = [{"role": "user", "content": sample["prompt"]}]
         prompt_formatted = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
@@ -231,7 +229,7 @@ def run_task_pipeline(model, tokenizer, task_name, samples):
             outputs = model(**inputs, output_hidden_states=True)
             hiddens = outputs.hidden_states
         for i in range(num_layers):
-            h_i = hiddens[i][0, -1, :].to(model.device) # Без .float(), оставляем bfloat16
+            h_i = hiddens[i][0, -1, :].to(model.device) 
             h_norm = norm_layer(h_i)
             logits_i = lm_head(h_norm).cpu()
             prob_correct_token = F.softmax(logits_i.float(), dim=-1)[base_argmax].item()
@@ -242,10 +240,12 @@ def run_task_pipeline(model, tokenizer, task_name, samples):
             noisy_probs = F.softmax(logits_noisy.float(), dim=-1).detach().numpy()
             kl_val = entropy(base_probs, noisy_probs + 1e-9)
             kl_accum[i] += kl_val
+            
     kl_data = [{'Layer': i, 'Value': kl_accum[i] / num_eval_samples} for i in range(num_layers)]
     ll_data = [{'Layer': i, 'Value': ll_accum[i] / num_eval_samples} for i in range(num_layers)]
     pd.DataFrame(kl_data).to_csv(os.path.join(m_dir, "metric_12_KL_noise.csv"), index=False)
     pd.DataFrame(ll_data).to_csv(os.path.join(m_dir, "metric_13_LogitLens.csv"), index=False)
+    
     dummy_moe = pd.DataFrame([{'Layer': i, 'Value': 0.0} for i in range(num_layers)])
     dummy_moe.to_csv(os.path.join(m_dir, "metric_09_Router_Entropy.csv"), index=False)
     dummy_moe.to_csv(os.path.join(PATHS[task_name]['data-free'], "metric_10_Router_Weights.csv"), index=False)
@@ -265,4 +265,5 @@ def main():
         if samples:
             run_task_pipeline(model, tokenizer, task, samples)
 
-main()
+if __name__ == "__main__":
+    main()

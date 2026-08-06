@@ -27,8 +27,8 @@ def load_metric_rich(path):
                 if not nums: continue
                 l_idx = int(nums[-1])
                 
-                val_next = df.iloc[i, min(i + 2, num_layers)]
                 val_start = df.iloc[i, 1]
+                val_next = df.iloc[i, min(i + 2, num_layers)]
                 val_end = df.iloc[i, num_layers]
                 val_mean = df.iloc[i, 1:].astype(float).mean()
                 
@@ -71,6 +71,7 @@ def load_metric_rich(path):
                 return {int(i): {'': float(val)} for i, val in enumerate(df[val_col])}
                 
     except Exception as e:
+        print(f"Error loading {path}: {e}")
         return None
 
 def main():
@@ -81,7 +82,6 @@ def main():
             metrics_dir = os.path.join(DATASET_DIR, "metrics", model, task)
             metrics_datafree_dir = os.path.join(DATASET_DIR, "metrics", model, "data-free")
             ablations_path = os.path.join(DATASET_DIR, "ablations", model, task, "ablations.csv")
-            ppl_path = os.path.join(DATASET_DIR, "target values", model, task, "PPL_drops.csv")
 
             acc_dict = {}
             if os.path.exists(ablations_path):
@@ -94,52 +94,24 @@ def main():
                 else:
                     acc_dict = df_acc.set_index('Layer')['Accuracy'].apply(lambda x: 0.0).to_dict()
 
-            df_ppl = pd.DataFrame(columns=['Layer'])
-            if os.path.exists(ppl_path):
-                df_ppl = pd.read_csv(ppl_path)
-                df_ppl['PPL_Ratio'] = df_ppl['Ablated_PPL'] / df_ppl['Baseline_PPL']
-                
-                ranks = df_ppl['PPL_Degradation'].rank(ascending=False).astype(float)
-                r_min = ranks.min()
-                r_max = ranks.max()
-                if r_max > r_min:
-                    df_ppl['PPL_Rank'] = (ranks - r_min) / (r_max - r_min)
-                else:
-                    df_ppl['PPL_Rank'] = 0.0
-
-            num_layers = len(df_ppl) if not df_ppl.empty else len(acc_dict)
+            num_layers = len(acc_dict)
             if num_layers == 0: 
                 continue
 
-            m1_path = os.path.join(metrics_dir, "metric_01_MSE.csv")
-            m1_dict = load_metric_rich(m1_path)
-            m2_path = os.path.join(metrics_dir, "metric_02_Cosine_Distance.csv")
-            m2_dict = load_metric_rich(m2_path)
-            m3_path = os.path.join(metrics_dir, "metric_03_Residual_Contribution.csv")
-            m3_dict = load_metric_rich(m3_path)
-            m4_path = os.path.join(metrics_dir, "metric_04_CKA.csv")
-            m4_dict = load_metric_rich(m4_path)
-            m5_path = os.path.join(metrics_dir, "metric_05_L1_Distance.csv")
-            m5_dict = load_metric_rich(m5_path)
-            m6_path = os.path.join(metrics_dir, "metric_06_L_Infinity.csv")
-            m6_dict = load_metric_rich(m6_path)
-            m7_path = os.path.join(metrics_dir, "metric_07_Variance_Ratio.csv")
-            m7_dict = load_metric_rich(m7_path)
-            m8_path = os.path.join(metrics_dir, "metric_08_Pearson_Correlation.csv")
-            m8_dict = load_metric_rich(m8_path)
-            m11_path = os.path.join(metrics_datafree_dir, "metric_11_SVD_Entropy.csv")
-            m11_dict = load_metric_rich(m11_path)
-            m12_path = os.path.join(metrics_dir, "metric_12_KL_noise.csv")
-            m12_dict = load_metric_rich(m12_path)
-            m13_path = os.path.join(metrics_dir, "metric_13_LogitLens.csv")
-            m13_dict = load_metric_rich(m13_path)
-            
-            m14_path = os.path.join(metrics_datafree_dir, "metric_14_Spectral_Norm.csv")
-            m14_dict = load_metric_rich(m14_path)
-            m15_path = os.path.join(metrics_datafree_dir, "metric_15_Frobenius_Norm.csv")
-            m15_dict = load_metric_rich(m15_path)
-            m16_path = os.path.join(metrics_datafree_dir, "metric_16_Effective_Rank.csv")
-            m16_dict = load_metric_rich(m16_path)
+            m1_dict = load_metric_rich(os.path.join(metrics_dir, "metric_01_MSE.csv"))
+            m2_dict = load_metric_rich(os.path.join(metrics_dir, "metric_02_Cosine_Distance.csv"))
+            m3_dict = load_metric_rich(os.path.join(metrics_dir, "metric_03_Residual_Contribution.csv"))
+            m4_dict = load_metric_rich(os.path.join(metrics_dir, "metric_04_CKA.csv"))
+            m5_dict = load_metric_rich(os.path.join(metrics_dir, "metric_05_L1_Distance.csv"))
+            m6_dict = load_metric_rich(os.path.join(metrics_dir, "metric_06_L_Infinity.csv"))
+            m7_dict = load_metric_rich(os.path.join(metrics_dir, "metric_07_Variance_Ratio.csv"))
+            m8_dict = load_metric_rich(os.path.join(metrics_dir, "metric_08_Pearson_Correlation.csv"))
+            m11_dict = load_metric_rich(os.path.join(metrics_datafree_dir, "metric_11_SVD_Entropy.csv"))
+            m12_dict = load_metric_rich(os.path.join(metrics_dir, "metric_12_KL_noise.csv"))
+            m13_dict = load_metric_rich(os.path.join(metrics_dir, "metric_13_LogitLens.csv"))
+            m14_dict = load_metric_rich(os.path.join(metrics_datafree_dir, "metric_14_Spectral_Norm.csv"))
+            m15_dict = load_metric_rich(os.path.join(metrics_datafree_dir, "metric_15_Frobenius_Norm.csv"))
+            m16_dict = load_metric_rich(os.path.join(metrics_datafree_dir, "metric_16_Effective_Rank.csv"))
 
             def add_to_row(name, m_dict, row_obj, l_idx):
                 if m_dict and l_idx in m_dict:
@@ -154,13 +126,6 @@ def main():
                     "Relative_Depth": layer / (num_layers - 1) if num_layers > 1 else 0.0,
                     "Accuracy_Drop": acc_dict.get(layer, np.nan)
                 }
-                
-                if not df_ppl.empty:
-                    p_row = df_ppl[df_ppl['Layer'] == layer]
-                    if not p_row.empty:
-                        row["PPL_Degradation"] = p_row['PPL_Degradation'].values[0]
-                        row["PPL_Ratio"] = p_row['PPL_Ratio'].values[0]
-                        row["PPL_Rank"] = p_row['PPL_Rank'].values[0]
 
                 add_to_row("M1_MSE", m1_dict, row, layer)
                 add_to_row("M2_Cosine", m2_dict, row, layer)
@@ -180,10 +145,33 @@ def main():
                 all_data.append(row)
 
     master_df = pd.DataFrame(all_data)
+    
+    # ---------------------------------------------------------
+    # ГЕНЕРАЦИЯ ПРОИЗВОДНЫХ (FEATURE ENGINEERING)
+    # ---------------------------------------------------------
+    master_df = master_df.sort_values(by=['Model', 'Task', 'Layer']).reset_index(drop=True)
+    
+    base_1d_metrics = [
+        'M11_SVD_Ent', 'M12_KL_Noise', 'M13_LogitLens', 
+        'M14_Spectral_Norm', 'M15_Frobenius_Norm', 'M16_Effective_Rank'
+    ]
+    
+    for col in base_1d_metrics:
+        if col in master_df.columns:
+            master_df[f'{col}_delta1'] = master_df.groupby(['Model', 'Task'])[col].diff()
+            master_df[f'{col}_delta2'] = master_df.groupby(['Model', 'Task'])[f'{col}_delta1'].diff()
+            master_df[f'{col}_rel_change'] = master_df.groupby(['Model', 'Task'])[col].pct_change()
+
+    pairwise_starts = [c for c in master_df.columns if c.endswith('_start')]
+    for col in pairwise_starts:
+        master_df[f'{col}_delta1'] = master_df.groupby(['Model', 'Task'])[col].diff()
+
+    master_df = master_df.replace([np.inf, -np.inf], np.nan).fillna(0.0)
     master_df = master_df.dropna(axis=1, how='all')
     
     out_path = os.path.join(SCRIPT_DIR, "master_dataset.csv")
     master_df.to_csv(out_path, index=False)
-    print(f"dataset size: {master_df.shape}")
+    print(f"Dataset compiled and cleaned. Final size: {master_df.shape}")
 
-main()
+if __name__ == "__main__":
+    main()
