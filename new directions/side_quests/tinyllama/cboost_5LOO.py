@@ -113,3 +113,32 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+'''
+Used features: ['Relative_Depth', 'M1_MSE_next', 'F1_Rank_Normalized_Residual_delta1', 'M11_SVD_Ent', 'M1_MSE_local_mean', 'M18_Outlier_IoU', 'M17_Var_Shift', 'M8_Pearson_next', 'M10_Router_Router_Norm_Min']
+
+train: ['gemma', 'phi-tiny', 'llama', 'tinyllama']
+test: Qwen
+  Task: csqa  | Spearman: 0.7409 | HR-4 (20%): 50.00% | NDCG-1: 0.9917 | NDCG-4 (20%): 0.9716
+  Task: siqa  | Spearman: 0.7871 | HR-4 (20%): 50.00% | NDCG-1: 0.9763 | NDCG-4 (20%): 0.9879
+
+train: ['Qwen', 'phi-tiny', 'llama', 'tinyllama']
+test: gemma
+  Task: csqa  | Spearman: 0.8351 | HR-6 (20%): 50.00% | NDCG-1: 0.9892 | NDCG-6 (20%): 0.9908
+  Task: siqa  | Spearman: 0.8008 | HR-6 (20%): 33.33% | NDCG-1: 0.9818 | NDCG-6 (20%): 0.9926
+
+train: ['Qwen', 'gemma', 'llama', 'tinyllama']
+test: phi-tiny
+  Task: csqa  | Spearman: 0.7831 | HR-6 (20%): 50.00% | NDCG-1: 0.9470 | NDCG-6 (20%): 0.9837
+  Task: siqa  | Spearman: 0.7112 | HR-6 (20%): 33.33% | NDCG-1: 0.9965 | NDCG-6 (20%): 0.9842
+
+train: ['Qwen', 'gemma', 'phi-tiny', 'tinyllama']
+test: llama
+  Task: csqa  | Spearman: 0.7777 | HR-5 (20%): 20.00% | NDCG-1: 0.9497 | NDCG-5 (20%): 0.8720
+  Task: siqa  | Spearman: 0.8200 | HR-5 (20%): 60.00% | NDCG-1: 0.9691 | NDCG-5 (20%): 0.9859
+
+train: ['Qwen', 'gemma', 'phi-tiny', 'llama']
+test: tinyllama
+  Task: csqa  | Spearman: 0.4471 | HR-4 (20%): 0.00% | NDCG-1: 0.8200 | NDCG-4 (20%): 0.8952
+  Task: siqa  | Spearman: 0.3033 | HR-4 (20%): 25.00% | NDCG-1: 1.0000 | NDCG-4 (20%): 0.9183
+'''

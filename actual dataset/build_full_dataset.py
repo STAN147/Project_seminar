@@ -4,11 +4,10 @@ import pandas as pd
 import numpy as np
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
-DATASET_DIR = os.path.join(BASE_DIR, "actual dataset")
+DATASET_DIR = os.path.join(SCRIPT_DIR)
 
 MODELS = ["phi-tiny", "Qwen", "gemma", "llama", "tinyllama"]
-TASKS = ["csqa", "siqa"]
+TASKS = ["csqa", "siqa", "copa"]
 
 def load_metric(path):
     if not os.path.exists(path):
@@ -172,7 +171,7 @@ def main():
 
     dataset_df = pd.DataFrame(all_data)
     dataset_df = dataset_df.sort_values(by=['Model', 'Task', 'Layer']).reset_index(drop=True)
-
+    
     if 'M3_Residual_end' in dataset_df.columns and 'M16_Effective_Rank' in dataset_df.columns:
         dataset_df['F1_Rank_Normalized_Residual'] = dataset_df['M3_Residual_end'] / (dataset_df['M16_Effective_Rank'] + 1e-6)
 

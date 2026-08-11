@@ -9,7 +9,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 
-MODELS = ["gemma"]
+MODELS = ["gemma", "phi-tiny", "Qwen"]
 
 def get_num_layers(model):
     config = model.config
@@ -36,11 +36,9 @@ def get_num_layers(model):
 
 def compute_layer_metrics(model, layer_idx, compute_device, is_moe):
     layer_signature = f".{layer_idx}."
-    
-    # Списки для базовых метрик
+
     spectral_norms, frob_norms, eff_ranks = [], [] , []
-    
-    # Контейнеры для M10 и M11
+
     router_metrics = {
         "Router_Norm_Var": 0.0,
         "Router_Norm_Min": 0.0,
@@ -48,16 +46,14 @@ def compute_layer_metrics(model, layer_idx, compute_device, is_moe):
         "Router_Norm_Mean": 0.0
     }
     svd_entropy_o_proj = 0.0
-    
-    # Флаги, чтобы взять только первый найденный тензор (как в исходном коде)
+
     router_found = False
     svd_found = False
     
     for name, param in model.named_parameters():
         if layer_signature in name and "weight" in name and len(param.shape) == 2:
             W = param.detach().to(compute_device).float()
-            
-            # --- Базовые метрики (M14, M15, M16) ---
+
             frob = torch.norm(W, p='fro').item()
             frob_norms.append(frob)
             
@@ -70,16 +66,14 @@ def compute_layer_metrics(model, layer_idx, compute_device, is_moe):
                 ent = -torch.sum(p * torch.log(p + 1e-9))
                 erank = torch.exp(ent).item()
                 eff_ranks.append(erank)
-                
-                # --- M11: SVD Entropy O_Proj ---
+
                 if not svd_found and ("o_proj" in name or "out_proj" in name or "dense" in name) and ("attn" in name or "mixer" in name):
                     max_entropy = torch.log(torch.tensor(len(S), dtype=torch.float32))
                     svd_entropy_o_proj = (ent / max_entropy).item()
                     svd_found = True
             except Exception:
                 pass
-                
-            # --- M10: Router Weights (Только если модель MoE) ---
+
             if is_moe and not router_found and ("gate" in name or "router" in name) and "gate_proj" not in name:
                 norms = torch.norm(W, p=2, dim=1)
                 if len(norms) > 1:
@@ -118,11 +112,8 @@ def main():
             torch_dtype=torch.float16,
             low_cpu_mem_usage=True
         )
-        
-        # Детектор архитектуры (MoE или Dense) с исключением gate_proj
+
         is_moe = any(("gate" in name or "router" in name) and "gate_proj" not in name for name, _ in model.named_parameters())
-        arch_type = "MoE (Метрики роутера будут вычислены)" if is_moe else "Dense (Метрики роутера заполнятся нулями)"
-        print(f"Архитектура: {arch_type}")
         
         num_layers = get_num_layers(model)
         
@@ -143,19 +134,15 @@ def main():
                 "Router_Norm_Max": metrics["Router_Norm_Max"],
                 "Router_Norm_Mean": metrics["Router_Norm_Mean"]
             })
-            
-        # Создаем директорию под модель
+
         out_dir = os.path.join(SCRIPT_DIR, model_name)
         os.makedirs(out_dir, exist_ok=True)
-        
-        # Сохраняем все 5 файлов
+
         pd.DataFrame(m_router, index=range(num_layers)).rename_axis('Layer').to_csv(os.path.join(out_dir, "metric_10_Router_Weights.csv"))
         pd.DataFrame({'SVD_Entropy_O_Proj': m_svd}, index=range(num_layers)).rename_axis('Layer').to_csv(os.path.join(out_dir, "metric_11_SVD_Entropy.csv"))
         pd.DataFrame({'Spectral_Norm': m_spec}, index=range(num_layers)).rename_axis('Layer').to_csv(os.path.join(out_dir, "metric_14_Spectral_Norm.csv"))
         pd.DataFrame({'Frobenius_Norm': m_frob}, index=range(num_layers)).rename_axis('Layer').to_csv(os.path.join(out_dir, "metric_15_Frobenius_Norm.csv"))
         pd.DataFrame({'Effective_Rank': m_erank}, index=range(num_layers)).rename_axis('Layer').to_csv(os.path.join(out_dir, "metric_16_Effective_Rank.csv"))
-        
-        print(f"Сохранено 5 файлов в {out_dir}/")
         
         del model
         if compute_device == "cuda":

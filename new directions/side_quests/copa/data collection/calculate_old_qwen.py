@@ -12,7 +12,7 @@ import torch.nn.functional as F
 warnings.filterwarnings("ignore")
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
+BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", "..", ".."))
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 DATASET_PATH = os.path.join(BASE_DIR, "datasets", "copa_500.csv")
 

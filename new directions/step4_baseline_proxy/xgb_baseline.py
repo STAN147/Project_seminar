@@ -32,19 +32,17 @@ def apply_hybrid_transform(df, features):
 def main():
     df = pd.read_csv("baseline_dataset.csv")
     top_features = [
-        'M3_Residual_end',
-        'M3_Residual_mean',
-        'M16_Effective_Rank',
-        'M13_LogitLens',
         'M5_L1_start',
-        'M8_Pearson_end',
+        'M3_Residual_end',
+        'M12_KL_Noise',
         'M2_Cosine_end',
-        'M3_Residual_next'
+        'M8_Pearson_end',
+        'M3_Residual_mean',
+        'M5_L1_mean',
+        'M16_Effective_Rank'
     ]
     
     features = [f for f in top_features if f in df.columns]
-    constraints = [1 if f in ['M16_Effective_Rank', 'M13_LogitLens', 'M5_L1_start', 'M8_Pearson_end'] else -1 for f in features]
-    monotone_constraints = tuple(constraints)
     df_trans = apply_hybrid_transform(df, features)
     df_trans['qid'] = df_trans.groupby(['Model', 'Task']).ngroup()
     df_trans['Accuracy_Drop_deterministic'] = df_trans['Accuracy_Drop'] + df_trans['Layer'] * 1e-9
@@ -84,7 +82,6 @@ def main():
             colsample_bytree=0.8,
             reg_alpha=0.5,
             reg_lambda=2.0,
-            monotone_constraints=monotone_constraints,
             random_state=42
         )
         ranker.fit(X_train, y_train, qid=qid_train, verbose=False)
@@ -122,16 +119,16 @@ if __name__ == "__main__":
 '''
 train: ['gemma', 'phi-tiny']
 test: Qwen
-  Task: csqa  | Spearman: 0.7539 | HR-4 (20%): 50.00% | NDCG-4 (20%): 0.9653
-  Task: siqa  | Spearman: 0.7689 | HR-4 (20%): 50.00% | NDCG-4 (20%): 0.9917
+  Task: csqa  | Spearman: 0.7426 | HR-4 (20%): 50.00% | NDCG-4 (20%): 0.9714
+  Task: siqa  | Spearman: 0.7410 | HR-4 (20%): 50.00% | NDCG-4 (20%): 0.9894
 
 train: ['Qwen', 'phi-tiny']
 test: gemma
-  Task: csqa  | Spearman: 0.8225 | HR-6 (20%): 50.00% | NDCG-6 (20%): 0.9937
-  Task: siqa  | Spearman: 0.8223 | HR-6 (20%): 50.00% | NDCG-6 (20%): 0.9928
+  Task: csqa  | Spearman: 0.7240 | HR-6 (20%): 16.67% | NDCG-6 (20%): 0.9861
+  Task: siqa  | Spearman: 0.7766 | HR-6 (20%): 50.00% | NDCG-6 (20%): 0.9904
 
 train: ['Qwen', 'gemma']
 test: phi-tiny
-  Task: csqa  | Spearman: 0.8675 | HR-6 (20%): 50.00% | NDCG-6 (20%): 0.9948
-  Task: siqa  | Spearman: 0.7128 | HR-6 (20%): 50.00% | NDCG-6 (20%): 0.9884
+  Task: csqa  | Spearman: 0.8481 | HR-6 (20%): 66.67% | NDCG-6 (20%): 0.9905
+  Task: siqa  | Spearman: 0.6135 | HR-6 (20%): 16.67% | NDCG-6 (20%): 0.9693
 '''
