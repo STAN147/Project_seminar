@@ -22,15 +22,18 @@ def main():
     dataset_path = os.path.join("..", "dataset.csv")
     df = pd.read_csv(dataset_path)
 
-    top_features = ['Relative_Depth',
-                    'M1_MSE_next',
-                    'F1_Rank_Normalized_Residual_delta1',
-                    'M11_SVD_Ent',
-                    'M1_MSE_local_mean',
-                    'M18_Outlier_IoU',
-                    'M17_Var_Shift',
-                    'M8_Pearson_next',
-                    'M10_Router_Router_Norm_Min']
+    top_features = [
+        'F3_NonLinear_Depth',
+        'F2_Depth_Penalized_Cosine',
+        'F1_Rank_Normalized_Residual',
+        'M3_Residual_end',
+        'M5_L1_local_global_ratio',
+        'M5_L1_local_mean',
+        'M16_Effective_Rank',
+        'M17_Var_Shift',
+        'M18_Outlier_IoU',
+        'M11_SVD_Ent'
+    ]
     features = [f for f in top_features if f in df.columns]
     
     constraints_dict = None
@@ -112,25 +115,23 @@ if __name__ == "__main__":
     main()
 
 '''
-Used features: ['Relative_Depth', 'M1_MSE_next', 'F1_Rank_Normalized_Residual_delta1', 'M11_SVD_Ent', 'M1_MSE_local_mean', 'M18_Outlier_IoU', 'M17_Var_Shift', 'M8_Pearson_next', 'M10_Router_Router_Norm_Min']
-
 train: ['gemma', 'phi-tiny', 'llama']
 test: Qwen
-  Task: csqa  | Spearman: 0.7896 | HR-4 (20%): 75.00% | NDCG-1: 0.9144 | NDCG-4 (20%): 0.9679
-  Task: siqa  | Spearman: 0.8028 | HR-4 (20%): 25.00% | NDCG-1: 0.9556 | NDCG-4 (20%): 0.9795
+  Task: csqa  | Spearman: 0.7817 | HR-4 (20%): 50.00% | NDCG-1: 0.9917 | NDCG-4 (20%): 0.9760
+  Task: siqa  | Spearman: 0.7863 | HR-4 (20%): 25.00% | NDCG-1: 0.9763 | NDCG-4 (20%): 0.9734
 
 train: ['Qwen', 'phi-tiny', 'llama']
 test: gemma
-  Task: csqa  | Spearman: 0.7981 | HR-6 (20%): 66.67% | NDCG-1: 0.9809 | NDCG-6 (20%): 0.9933
-  Task: siqa  | Spearman: 0.8175 | HR-6 (20%): 33.33% | NDCG-1: 0.9970 | NDCG-6 (20%): 0.9951
+  Task: csqa  | Spearman: 0.7775 | HR-6 (20%): 33.33% | NDCG-1: 0.9904 | NDCG-6 (20%): 0.9884
+  Task: siqa  | Spearman: 0.8064 | HR-6 (20%): 66.67% | NDCG-1: 0.9818 | NDCG-6 (20%): 0.9926
 
 train: ['Qwen', 'gemma', 'llama']
 test: phi-tiny
-  Task: csqa  | Spearman: 0.8114 | HR-6 (20%): 33.33% | NDCG-1: 0.9803 | NDCG-6 (20%): 0.9882
-  Task: siqa  | Spearman: 0.6505 | HR-6 (20%): 16.67% | NDCG-1: 0.9479 | NDCG-6 (20%): 0.9660
+  Task: csqa  | Spearman: 0.8603 | HR-6 (20%): 66.67% | NDCG-1: 0.9864 | NDCG-6 (20%): 0.9900
+  Task: siqa  | Spearman: 0.7429 | HR-6 (20%): 33.33% | NDCG-1: 0.9722 | NDCG-6 (20%): 0.9808
 
 train: ['Qwen', 'gemma', 'phi-tiny']
 test: llama
-  Task: csqa  | Spearman: 0.8100 | HR-5 (20%): 40.00% | NDCG-1: 0.9865 | NDCG-5 (20%): 0.9278
-  Task: siqa  | Spearman: 0.8375 | HR-5 (20%): 60.00% | NDCG-1: 1.0000 | NDCG-5 (20%): 0.9915
+  Task: csqa  | Spearman: 0.8464 | HR-5 (20%): 40.00% | NDCG-1: 0.8393 | NDCG-5 (20%): 0.9369
+  Task: siqa  | Spearman: 0.7715 | HR-5 (20%): 20.00% | NDCG-1: 0.9383 | NDCG-5 (20%): 0.9748
 '''

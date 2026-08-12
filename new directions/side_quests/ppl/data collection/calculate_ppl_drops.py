@@ -16,7 +16,7 @@ RESULTS_DIR = os.path.join(SCRIPT_DIR, "results")
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 MODEL_NAME = "phi-tiny"  # 'gemma', 'qwen', 'phi-tiny'
-TASK_NAME = "csqa"       # 'csqa', 'siqa', 'copa'
+TASK_NAME = "csqa"       # 'csqa', 'siqa'
 NUM_TEXTS = 50
 
 MODEL_DIR = os.path.join(BASE_DIR, "models", MODEL_NAME)
@@ -79,12 +79,6 @@ def load_texts(task_name):
         df = pd.read_csv(path)
         text_col = 'context' if 'context' in df.columns else df.columns[0]
         texts = df[text_col].dropna().head(NUM_TEXTS).tolist()
-    elif task_name == "copa":
-        path = os.path.join(BASE_DIR, "datasets", "copa_500.csv")
-        df = pd.read_csv(path)
-        for _, row in df.head(NUM_TEXTS).iterrows():
-            ans_col = row['answer'] if row['answer'] in ['A', 'B'] else 'A'
-            texts.append(f"{row['question']} {row[ans_col]}")
     return texts
 
 def main():

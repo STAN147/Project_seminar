@@ -58,9 +58,10 @@ def main():
     df_trans['relevance'] = df_trans.groupby('qid')['Accuracy_Drop_deterministic'].transform(make_relevance).astype(int)
 
     experiments = [
-        (['gemma', 'phi-tiny'], 'Qwen'),
-        (['Qwen', 'phi-tiny'], 'gemma'),
-        (['Qwen', 'gemma'], 'phi-tiny')
+        (['gemma', 'phi-tiny', 'llama'], 'Qwen'),
+        (['Qwen', 'phi-tiny', 'llama'], 'gemma'),
+        (['Qwen', 'gemma', 'llama'], 'phi-tiny'),
+        (['Qwen', 'gemma', 'phi-tiny'], 'llama')
     ]
     
     for train_models_list, test_model in experiments:
@@ -118,10 +119,33 @@ def main():
             true_relevance = true_relevance - np.min(true_relevance) 
             pred_scores = sub['pred_score'].values
             
+            ndcg_1 = ndcg_score([true_relevance], [pred_scores], k=1)
             ndcg_budget = ndcg_score([true_relevance], [pred_scores], k=k_budget)
             
             print(f"   Task: {task:<5} | Spearman: {spearman_val:.4f} | "
-                  f"HR-{k_budget} (20%): {hr_budget:.2%} | NDCG-{k_budget} (20%): {ndcg_budget:.4f}")
+                  f"HR-{k_budget} (20%): {hr_budget:.2%} | NDCG-1: {ndcg_1:.4f} | NDCG-{k_budget} (20%): {ndcg_budget:.4f}")
 
 if __name__ == "__main__":
     main()
+
+'''
+train: ['gemma', 'phi-tiny', 'llama']
+test: Qwen
+   Task: csqa  | Spearman: 0.7817 | HR-4 (20%): 50.00% | NDCG-1: 0.9613 | NDCG-4 (20%): 0.9714
+   Task: siqa  | Spearman: 0.7880 | HR-4 (20%): 50.00% | NDCG-1: 0.9970 | NDCG-4 (20%): 0.9922
+
+train: ['Qwen', 'phi-tiny', 'llama']
+test: gemma
+   Task: csqa  | Spearman: 0.8184 | HR-6 (20%): 50.00% | NDCG-1: 0.9904 | NDCG-6 (20%): 0.9940
+   Task: siqa  | Spearman: 0.7914 | HR-6 (20%): 50.00% | NDCG-1: 0.9848 | NDCG-6 (20%): 0.9924
+
+train: ['Qwen', 'gemma', 'llama']
+test: phi-tiny
+   Task: csqa  | Spearman: 0.8315 | HR-6 (20%): 50.00% | NDCG-1: 0.9909 | NDCG-6 (20%): 0.9966
+   Task: siqa  | Spearman: 0.7471 | HR-6 (20%): 50.00% | NDCG-1: 0.9479 | NDCG-6 (20%): 0.9818
+
+train: ['Qwen', 'gemma', 'phi-tiny']
+test: llama
+   Task: csqa  | Spearman: 0.8188 | HR-5 (20%): 40.00% | NDCG-1: 0.9472 | NDCG-5 (20%): 0.9526
+   Task: siqa  | Spearman: 0.7814 | HR-5 (20%): 20.00% | NDCG-1: 0.9722 | NDCG-5 (20%): 0.9775
+'''

@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 import numpy as np
-import catboost as cb
+import xgboost as xgb
 from scipy.stats import spearmanr
 from sklearn.metrics import ndcg_score
 import warnings
@@ -11,32 +11,42 @@ warnings.filterwarnings("ignore")
 def apply_hybrid_transform(df, features):
     df_trans = df.copy()
     models = df['Model'].unique()
+    rank_keywords = ['KL', 'Rank', 'Ent', 'LogitLens', 'L1', 'F2', 'F3']
+    rank_features = [f for f in features if any(k in f for k in rank_keywords)]
+    z_features = [f for f in features if f not in rank_features]
     for m in models:
         mask = df_trans['Model'] == m
-        for f in features:
+        for f in rank_features:
             if f in df_trans.columns:
                 df_trans.loc[mask, f] = df_trans.loc[mask, f].rank(pct=True, method='average')
+        for f in z_features:
+            if f in df_trans.columns:
+                mean = df_trans.loc[mask, f].mean()
+                std = df_trans.loc[mask, f].std()
+                if std > 1e-6:
+                    df_trans.loc[mask, f] = (df_trans.loc[mask, f] - mean) / std
+                else:
+                    df_trans.loc[mask, f] = 0.0
     return df_trans
 
 def main():
-    dataset_path = os.path.join("dataset.csv")
+    dataset_path = "../dataset.csv"
     df = pd.read_csv(dataset_path)
-
+    
     top_features = [
-        'Relative_Depth',
-        'M1_MSE_next',
-        'F1_Rank_Normalized_Residual_delta1',
-        'M11_SVD_Ent',
-        'M1_MSE_local_mean',
-        'M18_Outlier_IoU',
+        'F3_NonLinear_Depth',
+        'F2_Depth_Penalized_Cosine',
+        'F1_Rank_Normalized_Residual',
+        'M3_Residual_end',
+        'M5_L1_local_global_ratio',
+        'M5_L1_local_mean',
+        'M16_Effective_Rank',
         'M17_Var_Shift',
-        'M8_Pearson_next',
-        'M10_Router_Router_Norm_Min'
+        'M18_Outlier_IoU',
+        'M11_SVD_Ent'
     ]
     features = [f for f in top_features if f in df.columns]
     
-    constraints_dict = None
-
     print("Used features:", features)
 
     df_trans = apply_hybrid_transform(df, features)
@@ -62,7 +72,6 @@ def main():
         test_mask = (df_trans['Model'] == test_model)
         train_df = df_trans[train_mask].sort_values(['qid', 'Layer'])
         test_df = df_trans[test_mask].sort_values(['qid', 'Layer'])
-        
         if len(train_df) == 0 or len(test_df) == 0:
             continue
             
@@ -71,20 +80,25 @@ def main():
         qid_train = train_df['qid']
         X_test = test_df[features].fillna(0).astype(float)
         
-        train_pool = cb.Pool(data=X_train, label=y_train, group_id=qid_train)
-        
-        ranker = cb.CatBoostRanker(
-            loss_function='QuerySoftMax',
-            iterations=300,
-            learning_rate=0.05,
-            depth=3,
-            l2_leaf_reg=1.0,
-            monotone_constraints=constraints_dict,
-            random_seed=42,
-            verbose=False
+        ranker = xgb.XGBRanker(
+            tree_method="hist",
+            device="cuda",
+            objective="rank:pairwise",
+            n_estimators=300,
+            learning_rate=0.10,
+            max_depth=3,
+            subsample=0.8,
+            colsample_bytree=0.8,
+            reg_alpha=0.01,
+            reg_lambda=1.00,
+            random_state=42
         )
-        
-        ranker.fit(train_pool)
+        try:
+            ranker.fit(X_train, y_train, qid=qid_train, verbose=False)
+        except Exception:
+            ranker.set_params(device="cpu")
+            ranker.fit(X_train, y_train, qid=qid_train, verbose=False)
+            
         preds = ranker.predict(X_test)
         test_df['pred_score'] = preds
         
@@ -96,49 +110,23 @@ def main():
             if len(sub) < 3: continue
             
             corr, _ = spearmanr(sub['pred_score'], sub['Accuracy_Drop'])
-            spearman_val = abs(corr) if not np.isnan(corr) else 0.0
+            spearman_val = abs(corr)
+            
             k_budget = max(1, int(len(sub) * 0.20))
+            
             t_idx = sub.nsmallest(k_budget, 'Accuracy_Drop').index
             p_idx = sub.nlargest(k_budget, 'pred_score').index
             hr_budget = len(set(t_idx).intersection(set(p_idx))) / k_budget
+            
             true_relevance = -sub['Accuracy_Drop'].values
             true_relevance = true_relevance - np.min(true_relevance) 
             pred_scores = sub['pred_score'].values
             
-            ndcg_budget = ndcg_score([true_relevance], [pred_scores], k=k_budget)
             ndcg_1 = ndcg_score([true_relevance], [pred_scores], k=1)
+            ndcg_budget = ndcg_score([true_relevance], [pred_scores], k=k_budget)
             
-            print(f"  Task: {task:<5} | Spearman: {spearman_val:.4f} | "
+            print(f"   Task: {task:<5} | Spearman: {spearman_val:.4f} | "
                   f"HR-{k_budget} (20%): {hr_budget:.2%} | NDCG-1: {ndcg_1:.4f} | NDCG-{k_budget} (20%): {ndcg_budget:.4f}")
 
 if __name__ == "__main__":
     main()
-
-'''
-Used features: ['Relative_Depth', 'M1_MSE_next', 'F1_Rank_Normalized_Residual_delta1', 'M11_SVD_Ent', 'M1_MSE_local_mean', 'M18_Outlier_IoU', 'M17_Var_Shift', 'M8_Pearson_next', 'M10_Router_Router_Norm_Min']
-
-train: ['gemma', 'phi-tiny', 'llama', 'tinyllama']
-test: Qwen
-  Task: csqa  | Spearman: 0.7409 | HR-4 (20%): 50.00% | NDCG-1: 0.9917 | NDCG-4 (20%): 0.9716
-  Task: siqa  | Spearman: 0.7871 | HR-4 (20%): 50.00% | NDCG-1: 0.9763 | NDCG-4 (20%): 0.9879
-
-train: ['Qwen', 'phi-tiny', 'llama', 'tinyllama']
-test: gemma
-  Task: csqa  | Spearman: 0.8351 | HR-6 (20%): 50.00% | NDCG-1: 0.9892 | NDCG-6 (20%): 0.9908
-  Task: siqa  | Spearman: 0.8008 | HR-6 (20%): 33.33% | NDCG-1: 0.9818 | NDCG-6 (20%): 0.9926
-
-train: ['Qwen', 'gemma', 'llama', 'tinyllama']
-test: phi-tiny
-  Task: csqa  | Spearman: 0.7831 | HR-6 (20%): 50.00% | NDCG-1: 0.9470 | NDCG-6 (20%): 0.9837
-  Task: siqa  | Spearman: 0.7112 | HR-6 (20%): 33.33% | NDCG-1: 0.9965 | NDCG-6 (20%): 0.9842
-
-train: ['Qwen', 'gemma', 'phi-tiny', 'tinyllama']
-test: llama
-  Task: csqa  | Spearman: 0.7777 | HR-5 (20%): 20.00% | NDCG-1: 0.9497 | NDCG-5 (20%): 0.8720
-  Task: siqa  | Spearman: 0.8200 | HR-5 (20%): 60.00% | NDCG-1: 0.9691 | NDCG-5 (20%): 0.9859
-
-train: ['Qwen', 'gemma', 'phi-tiny', 'llama']
-test: tinyllama
-  Task: csqa  | Spearman: 0.4471 | HR-4 (20%): 0.00% | NDCG-1: 0.8200 | NDCG-4 (20%): 0.8952
-  Task: siqa  | Spearman: 0.3033 | HR-4 (20%): 25.00% | NDCG-1: 1.0000 | NDCG-4 (20%): 0.9183
-'''

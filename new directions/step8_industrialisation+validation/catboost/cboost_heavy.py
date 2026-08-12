@@ -22,16 +22,16 @@ def main():
     df = pd.read_csv("../dataset.csv")
 
     top_features = [
-        'Relative_Depth',
-        'M1_MSE_next',
-        'F1_Rank_Normalized_Residual_delta1',
-        'M11_SVD_Ent',
-        'M1_MSE_local_mean',
-        'M18_Outlier_IoU',
+        'F3_NonLinear_Depth',
+        'F2_Depth_Penalized_Cosine',
+        'F1_Rank_Normalized_Residual',
+        'M5_L1_local_global_ratio',
+        'M5_L1_local_mean',
+        'M3_Residual_end',
+        'M13_LogitLens',
+        'M16_Effective_Rank',
         'M17_Var_Shift',
-        'M8_Pearson_next',
-        'M10_Router_Router_Norm_Min',
-        'M13_LogitLens_delta1'
+        'M18_Outlier_IoU'
     ]
     features = [f for f in top_features if f in df.columns]
     
@@ -114,8 +114,6 @@ if __name__ == "__main__":
     main()
 
 '''
-Used features: ['Relative_Depth', 'M1_MSE_next', 'F1_Rank_Normalized_Residual_delta1', 'M11_SVD_Ent', 'M1_MSE_local_mean', 'M18_Outlier_IoU', 'M17_Var_Shift', 'M8_Pearson_next', 'M10_Router_Router_Norm_Min', 'M13_LogitLens_delta1']
-
 train: ['gemma', 'phi-tiny', 'llama']
 test: Qwen
   Task: csqa  | Spearman: 0.7609 | HR-4 (20%): 25.00% | NDCG-1: 0.9144 | NDCG-4 (20%): 0.9296

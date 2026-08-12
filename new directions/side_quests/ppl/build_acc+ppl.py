@@ -3,8 +3,10 @@ import pandas as pd
 import numpy as np
 
 def main():
-    PPL_DIR = os.path.join("actual dataset", "experiments")
-    ABLATIONS_DIR = os.path.join("actual dataset", "ablations")
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+    BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
+    PPL_DIR = os.path.join(BASE_DIR, "actual dataset", "experiments")
+    ABLATIONS_DIR = os.path.join(BASE_DIR, "actual dataset", "ablations")
 
     model_map = {
         "gemma": "gemma",
@@ -26,7 +28,6 @@ def main():
                 
             model_name = parts[0]
             task = parts[1]
-
             model_folder = model_map.get(model_name, model_name)
 
             ppl_path = os.path.join(PPL_DIR, file)

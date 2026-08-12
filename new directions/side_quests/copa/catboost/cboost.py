@@ -19,18 +19,21 @@ def apply_hybrid_transform(df, features):
     return df_trans
 
 def main():
+    dataset_path = "../dataset.csv"
+    df = pd.read_csv(dataset_path)
 
-    df = pd.read_csv("../dataset.csv")
-
-    top_features = ['Relative_Depth',
-                    'M1_MSE_next',
-                    'F1_Rank_Normalized_Residual_delta1',
-                    'M11_SVD_Ent',
-                    'M1_MSE_local_mean',
-                    'M18_Outlier_IoU',
-                    'M17_Var_Shift',
-                    'M8_Pearson_next',
-                    'M10_Router_Router_Norm_Min']
+    top_features = [
+        'F3_NonLinear_Depth',
+        'F2_Depth_Penalized_Cosine',
+        'F1_Rank_Normalized_Residual',
+        'M3_Residual_end',
+        'M5_L1_local_global_ratio',
+        'M5_L1_local_mean',
+        'M16_Effective_Rank',
+        'M17_Var_Shift',
+        'M18_Outlier_IoU',
+        'M11_SVD_Ent'
+    ]
     features = [f for f in top_features if f in df.columns]
     
     constraints_dict = None
@@ -47,18 +50,16 @@ def main():
         
     df_trans['relevance'] = df_trans.groupby('qid')['Accuracy_Drop_deterministic'].transform(make_relevance).astype(int)
 
-    train_mask = df_trans['Task'] != 'copa'
+    train_mask = (df_trans['Task'] != 'copa') & (~df_trans['Model'].str.lower().isin(['tinyllama']))
     test_mask = df_trans['Task'] == 'copa'
     
     train_df = df_trans[train_mask].sort_values(['qid', 'Layer'])
     test_df = df_trans[test_mask].sort_values(['qid', 'Layer'])
-    
-    if len(train_df) == 0 or len(test_df) == 0:
-        return
-        
+
     X_train = train_df[features].fillna(0).astype(float)
     y_train = train_df['relevance']
     qid_train = train_df['qid']
+    
     X_test = test_df[features].fillna(0).astype(float)
     
     train_pool = cb.Pool(data=X_train, label=y_train, group_id=qid_train)
@@ -75,15 +76,14 @@ def main():
     )
     
     ranker.fit(train_pool)
+    
     preds = ranker.predict(X_test)
     test_df['pred_score'] = preds
     
-    print("\ntrain: All models, tasks excluding copa")
-    print("test: All models, task copa")
-    
     for model in test_df['Model'].unique():
         sub = test_df[test_df['Model'] == model]
-        if len(sub) < 3: continue
+        if len(sub) < 3: 
+            continue
         
         corr, _ = spearmanr(sub['pred_score'], sub['Accuracy_Drop'])
         spearman_val = abs(corr) if not np.isnan(corr) else 0.0
@@ -91,6 +91,7 @@ def main():
         t_idx = sub.nsmallest(k_budget, 'Accuracy_Drop').index
         p_idx = sub.nlargest(k_budget, 'pred_score').index
         hr_budget = len(set(t_idx).intersection(set(p_idx))) / k_budget
+        
         true_relevance = -sub['Accuracy_Drop'].values
         true_relevance = true_relevance - np.min(true_relevance) 
         pred_scores = sub['pred_score'].values
@@ -98,17 +99,8 @@ def main():
         ndcg_budget = ndcg_score([true_relevance], [pred_scores], k=k_budget)
         ndcg_1 = ndcg_score([true_relevance], [pred_scores], k=1)
         
-        print(f"  Model: {model:<10} | Spearman: {spearman_val:.4f} | "
+        print(f"  Model: {model:<10} | Task: copa  | Spearman: {spearman_val:.4f} | "
               f"HR-{k_budget} (20%): {hr_budget:.2%} | NDCG-1: {ndcg_1:.4f} | NDCG-{k_budget} (20%): {ndcg_budget:.4f}")
 
 if __name__ == "__main__":
     main()
-
-'''
-Used features: ['Relative_Depth', 'M1_MSE_next', 'F1_Rank_Normalized_Residual_delta1', 'M11_SVD_Ent', 'M1_MSE_local_mean', 'M18_Outlier_IoU', 'M17_Var_Shift', 'M8_Pearson_next', 'M10_Router_Router_Norm_Min']
-
-train: All models, tasks excluding copa
-test: All models, task copa
-  Model: Qwen       | Spearman: 0.4504 | HR-4 (20%): 25.00% | NDCG-1: 0.9328 | NDCG-4 (20%): 0.9074
-  Model: gemma      | Spearman: 0.4479 | HR-6 (20%): 16.67% | NDCG-1: 0.8662 | NDCG-6 (20%): 0.9272
-'''
