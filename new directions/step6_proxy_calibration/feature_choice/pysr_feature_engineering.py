@@ -3,9 +3,6 @@ import pandas as pd
 import numpy as np
 import sympy as sp
 from pysr import PySRRegressor
-import warnings
-
-warnings.filterwarnings("ignore")
 
 def main():
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -23,12 +20,9 @@ def main():
         'M19_Attn_MLP_Ratio',
         'Relative_Depth'
     ]
-    
     features = [f for f in selected_features if f in df.columns]
     target = 'Accuracy_Drop'
-    
     models = df['Model'].unique()
-    
     for model_name in models:
         print(f"testing {model_name}")
         mask = (df['Model'] == model_name) & (df['Task'] != 'copa')
@@ -57,7 +51,6 @@ def main():
         print(f"\nTop equations for {model_name}:")
         equations = model.equations_
         top_eqs = equations.sort_values(by="score", ascending=False).head(5)
-        
         for idx, row in top_eqs.iterrows():
             print(f"\nComplexity: {row['complexity']} | Loss: {row['loss']:.6f} | Score: {row['score']:.4f}")
             print(f"Formula: {row['equation']}")

@@ -2,9 +2,6 @@ import os
 import pandas as pd
 import numpy as np
 from scipy.stats import spearmanr
-import warnings
-
-warnings.filterwarnings("ignore")
 
 def main():
     dataset_path = "../dataset.csv"
@@ -27,13 +24,11 @@ def main():
                 abs_corrs.append(abs(corr))
             else:
                 row[m] = 0.0
-                
         row['Mean_Abs_Corr'] = np.mean(abs_corrs) if abs_corrs else 0.0
         results.append(row)
     corr_df = pd.DataFrame(results)
     corr_df = corr_df.sort_values(by='Mean_Abs_Corr', ascending=False).reset_index(drop=True)
     print(f"\n{'Feature':<35} | " + " | ".join([f"{m:<10}" for m in models]) + " | Mean |Corr|")
-    print("-" * 85)
     for _, row in corr_df.head(25).iterrows():
         feature_name = row['Feature'][:33]
         model_corrs = " | ".join([f"{row[m]:+10.4f}" for m in models])

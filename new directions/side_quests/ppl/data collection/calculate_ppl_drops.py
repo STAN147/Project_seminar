@@ -5,9 +5,7 @@ import pandas as pd
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, logging
 from tqdm import tqdm
 import math
-import warnings
 
-warnings.filterwarnings("ignore")
 logging.set_verbosity_error()
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -102,22 +100,16 @@ def main():
             local_files_only=True,
             trust_remote_code=True
         )
-        
     model.eval()
     model.config.use_cache = False
-
     layers = get_layers(model)
     num_layers = len(layers)
-
     baseline_ppl = calculate_perplexity(model, tokenizer, texts)
-    print(f"[{MODEL_NAME} | {TASK_NAME}] Базовая PPL: {baseline_ppl:.4f}\n")
-
     results = []
     for l in tqdm(range(num_layers), desc=f"Аблация {MODEL_NAME}"):
         hook_handle = layers[l].register_forward_hook(get_skip_layer_hook())
         ablated_ppl = calculate_perplexity(model, tokenizer, texts)
         hook_handle.remove()
-        
         ppl_degradation = ablated_ppl - baseline_ppl
         results.append({
             "Layer": l,
@@ -125,12 +117,10 @@ def main():
             "Ablated_PPL": ablated_ppl,
             "PPL_Degradation": ppl_degradation
         })
-
     df_results = pd.DataFrame(results)
     out_file = f"ppl_drops_{MODEL_NAME.lower()}_{TASK_NAME}.csv"
     out_path = os.path.join(RESULTS_DIR, out_file)
     df_results.to_csv(out_path, index=False)
-    print(f"Сохранено в: {out_path}")
 
 if __name__ == "__main__":
     main()

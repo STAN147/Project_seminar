@@ -15,9 +15,7 @@ def load_metric(path):
         return None
     df = pd.read_csv(path)
     result = {}
-    
     is_matrix = len(df.columns) > 10
-    
     if is_matrix:
         num_layers = len(df)
         row_labels = df.iloc[:, 0].astype(str)
@@ -25,12 +23,10 @@ def load_metric(path):
             nums = re.findall(r'\d+', row_labels[i])
             if not nums: continue
             l_idx = int(nums[-1])
-            
             val_start = df.iloc[i, 1]
             val_next = df.iloc[i, min(i + 2, num_layers)]
             val_end = df.iloc[i, num_layers]
             val_mean = df.iloc[i, 1:].astype(float).mean()
-            
             result[l_idx] = {
                 '_next': float(val_next),
                 '_start': float(val_start),
@@ -55,7 +51,6 @@ def load_metric(path):
                 else:
                     nums = re.findall(r'\d+', str(l_val))
                     if nums: idx = int(nums[-1])
-                    
                 if idx is not None:
                     result[idx] = {}
                     for c in df.columns:
@@ -81,13 +76,11 @@ def load_metric(path):
 
 def main():
     all_data = []
-
     for model in MODELS:
         for task in TASKS:
             metrics_dir = os.path.join(DATASET_DIR, "metrics", model, task)
             metrics_datafree_dir = os.path.join(DATASET_DIR, "metrics", model, "data-free")
             ablations_path = os.path.join(DATASET_DIR, "ablations", model, task, "ablations.csv")
-
             acc_dict = {}
             if os.path.exists(ablations_path):
                 df_acc = pd.read_csv(ablations_path)
@@ -98,11 +91,9 @@ def main():
                     acc_dict = df_acc.set_index('Layer')['Accuracy'].apply(lambda x: (baseline_acc - x) / baseline_acc).to_dict()
                 else:
                     acc_dict = df_acc.set_index('Layer')['Accuracy'].apply(lambda x: 0.0).to_dict()
-
             num_layers = len(acc_dict)
             if num_layers == 0: 
                 continue
-
             m1_dict = load_metric(os.path.join(metrics_dir, "metric_01_MSE.csv"))
             m2_dict = load_metric(os.path.join(metrics_dir, "metric_02_Cosine_Distance.csv"))
             m3_dict = load_metric(os.path.join(metrics_dir, "metric_03_Residual_Contribution.csv"))
@@ -132,7 +123,6 @@ def main():
                     "Relative_Depth": layer / (num_layers - 1) if num_layers > 1 else 0.0,
                     "Accuracy_Drop": acc_dict.get(layer, np.nan)
                 }
-
                 add_to_row("M1_MSE", m1_dict, row, layer)
                 add_to_row("M2_Cosine", m2_dict, row, layer)
                 add_to_row("M3_Residual", m3_dict, row, layer)
@@ -148,30 +138,23 @@ def main():
                 add_to_row("M14_Spectral_Norm", m14_dict, row, layer)
                 add_to_row("M15_Frobenius_Norm", m15_dict, row, layer)
                 add_to_row("M16_Effective_Rank", m16_dict, row, layer)
-
                 all_data.append(row)
-
     baseline_df = pd.DataFrame(all_data)
     baseline_df = baseline_df.sort_values(by=['Model', 'Task', 'Layer']).reset_index(drop=True)
-    
     base_1d_metrics = [
         'M11_SVD_Ent', 'M12_KL_Noise', 'M13_LogitLens', 
         'M14_Spectral_Norm', 'M15_Frobenius_Norm', 'M16_Effective_Rank'
     ]
-    
     for col in base_1d_metrics:
         if col in baseline_df.columns:
             baseline_df[f'{col}_delta1'] = baseline_df.groupby(['Model', 'Task'])[col].diff()
             baseline_df[f'{col}_delta2'] = baseline_df.groupby(['Model', 'Task'])[f'{col}_delta1'].diff()
             baseline_df[f'{col}_rel_change'] = baseline_df.groupby(['Model', 'Task'])[col].pct_change()
-
     pairwise_starts = [c for c in baseline_df.columns if c.endswith('_start')]
     for col in pairwise_starts:
         baseline_df[f'{col}_delta1'] = baseline_df.groupby(['Model', 'Task'])[col].diff()
-
     baseline_df = baseline_df.replace([np.inf, -np.inf], np.nan).fillna(0.0)
     baseline_df = baseline_df.dropna(axis=1, how='all')
-    
     out_path = os.path.join(SCRIPT_DIR, "baseline_dataset.csv")
     baseline_df.to_csv(out_path, index=False)
     print(f"Dataset compiled. Final size: {baseline_df.shape}")

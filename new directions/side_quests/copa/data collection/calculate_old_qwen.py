@@ -2,14 +2,11 @@ import os
 import re
 import math
 import torch
-import warnings
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 import torch.nn.functional as F
-
-warnings.filterwarnings("ignore")
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", "..", ".."))
@@ -83,7 +80,6 @@ def compute_datafree_metrics(model, num_layers):
 def extract_hidden_geometries(model, tokenizer, df):
     num_layers = get_num_layers(model)
     all_hiddens = {l: [] for l in range(num_layers)}
-    
     for _, row in tqdm(df.iterrows(), total=len(df), desc="  [Скрытые состояния]"):
         text = row['question'] + " " + row[row['answer']]
         inputs = tokenizer(text, return_tensors="pt").to(model.device)
@@ -93,12 +89,10 @@ def extract_hidden_geometries(model, tokenizer, df):
             for l in range(num_layers):
                 pooled = h_states[l].mean(dim=1).squeeze().cpu()
                 all_hiddens[l].append(pooled)
-                
     vectors = []
     for l in range(num_layers):
         vectors.append(torch.stack(all_hiddens[l]).mean(dim=0))
     V = torch.stack(vectors).float()
-    
     m1, m2, m3, m4, m5, m6, m7, m8 = (np.zeros((num_layers, num_layers)) for _ in range(8))
     for i in range(num_layers):
         for j in range(num_layers):
@@ -109,12 +103,10 @@ def extract_hidden_geometries(model, tokenizer, df):
             m5[i, j] = torch.nn.functional.l1_loss(vi, vj).item()
             m6[i, j] = torch.max(torch.abs(vi - vj)).item()
             m7[i, j] = torch.var(vi).item() / (torch.var(vj).item() + 1e-9)
-            
             vi_c = vi - vi.mean()
             vj_c = vj - vj.mean()
             m8[i, j] = (torch.dot(vi_c, vj_c) / (torch.norm(vi_c) * torch.norm(vj_c) + 1e-9)).item()
             m4[i, j] = m8[i, j] ** 2 
-
     return m1, m2, m3, m4, m5, m6, m7, m8
 
 def compute_kl_and_logitlens(model, tokenizer, df):
@@ -122,18 +114,15 @@ def compute_kl_and_logitlens(model, tokenizer, df):
     layers = get_layers(model)
     m12_kl = np.zeros(num_layers)
     m13_ll = np.zeros(num_layers)
-    
     for l in tqdm(range(num_layers), desc="  [KL Noise & LogitLens]"):
         kl_batch, ll_batch = [], []
         for _, row in df.iterrows():
             text = row['question'] + " " + row[row['answer']]
             inputs = tokenizer(text, return_tensors="pt").to(model.device)
-            
             with torch.no_grad():
                 base_out = model(**inputs, output_hidden_states=True, use_cache=False)
                 base_logits = base_out.logits
                 h = base_out.hidden_states[l+1]
-                
                 try:
                     if hasattr(model, 'lm_head'):
                         normed = model.model.norm(h) if hasattr(model.model, 'norm') else h
@@ -156,36 +145,27 @@ def compute_kl_and_logitlens(model, tokenizer, df):
                 noise_out = model(**inputs, use_cache=False)
                 noise_logits = noise_out.logits
             hook.remove()
-            
             kl = F.kl_div(F.log_softmax(noise_logits, dim=-1), F.softmax(base_logits, dim=-1), reduction='batchmean').item()
             kl_batch.append(kl)
-            
         m12_kl[l] = np.mean(kl_batch)
         m13_ll[l] = np.mean(ll_batch)
-        
     return m12_kl, m13_ll
 
 def main():
     df = pd.read_csv(DATASET_PATH)
     labels_map = {'A': 0, 'B': 1}
-
     for model_name in MODELS:
         model_path = os.path.join(MODELS_DIR, model_name)
-        
         dir_abl = os.path.join(SCRIPT_DIR, "ablations", model_name)
         dir_met = os.path.join(SCRIPT_DIR, "metrics", model_name)
         dir_dfree = os.path.join(dir_met, "data-free")
-        
         for d in [dir_abl, dir_met, dir_dfree]:
             os.makedirs(d, exist_ok=True)
-
         tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
-
         quantization_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_compute_dtype=torch.float16,
         )
-
         model = AutoModelForCausalLM.from_pretrained(
             model_path, 
             trust_remote_code=True, 
@@ -194,23 +174,15 @@ def main():
             low_cpu_mem_usage=True
         ).eval()
         model.config.use_cache = False
-        
         num_layers = get_num_layers(model)
-
-        print("Расчет Baseline...")
         base_accs = []
         for i, row in tqdm(df.iterrows(), total=len(df), desc="  [Baseline]"):
             correct_idx = labels_map[row['answer']]
             choices = [row['A'], row['B']]
             acc, _ = evaluate_sample(model, tokenizer, row['question'], choices, correct_idx)
             base_accs.append(acc)
-
         baseline_acc = np.mean(base_accs)
-        
-        print(f"\nBaseline Accuracy: {baseline_acc:.2%} ({baseline_acc:.4f})\n")
-
         ablation_results = []
-        
         for l_idx in tqdm(range(num_layers), desc="  [Ablations]"):
             hook = AblationHook(get_layers(model)[l_idx])
             accs = []
@@ -220,14 +192,10 @@ def main():
                 acc, _ = evaluate_sample(model, tokenizer, row['question'], choices, correct_idx)
                 accs.append(acc)
             hook.remove()
-            
             abl_acc = np.mean(accs)
             ablation_results.append({'Layer': l_idx, 'Accuracy': abl_acc})
-            
         pd.DataFrame([{'Layer': 'Baseline', 'Accuracy': baseline_acc}] + ablation_results).to_csv(os.path.join(dir_abl, "ablations.csv"), index=False)
-
         m1, m2, m3, m4, m5, m6, m7, m8 = extract_hidden_geometries(model, tokenizer, df)
-        
         metrics_matrices = [
             (m1, "metric_01_MSE.csv"), (m2, "metric_02_Cosine_Distance.csv"),
             (m3, "metric_03_Residual_Contribution.csv"), (m4, "metric_04_CKA.csv"),
@@ -236,18 +204,15 @@ def main():
         ]
         for mat, fname in metrics_matrices:
             pd.DataFrame(mat, index=range(num_layers)).rename_axis('Layer').to_csv(os.path.join(dir_met, fname))
-
         m12, m13 = compute_kl_and_logitlens(model, tokenizer, df)
         pd.DataFrame({'KL_noise': m12}, index=range(num_layers)).rename_axis('Layer').to_csv(os.path.join(dir_met, "metric_12_KL_noise.csv"))
         pd.DataFrame({'LogitLens': m13}, index=range(num_layers)).rename_axis('Layer').to_csv(os.path.join(dir_met, "metric_13_LogitLens.csv"))
-
         m10, m11, m14, m15, m16 = compute_datafree_metrics(model, num_layers)
         pd.DataFrame({'Router_Weights': m10}, index=range(num_layers)).rename_axis('Layer').to_csv(os.path.join(dir_dfree, "metric_10_Router_Weights.csv"))
         pd.DataFrame({'SVD_Entropy': m11}, index=range(num_layers)).rename_axis('Layer').to_csv(os.path.join(dir_dfree, "metric_11_SVD_Entropy.csv"))
         pd.DataFrame({'Spectral_Norm': m14}, index=range(num_layers)).rename_axis('Layer').to_csv(os.path.join(dir_dfree, "metric_14_Spectral_Norm.csv"))
         pd.DataFrame({'Frobenius_Norm': m15}, index=range(num_layers)).rename_axis('Layer').to_csv(os.path.join(dir_dfree, "metric_15_Frobenius_Norm.csv"))
         pd.DataFrame({'Effective_Rank': m16}, index=range(num_layers)).rename_axis('Layer').to_csv(os.path.join(dir_dfree, "metric_16_Effective_Rank.csv"))
-
         del model, tokenizer
         if DEVICE == "cuda": torch.cuda.empty_cache()
 

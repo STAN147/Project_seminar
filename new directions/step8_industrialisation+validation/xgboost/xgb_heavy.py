@@ -4,9 +4,6 @@ import numpy as np
 import xgboost as xgb
 from scipy.stats import spearmanr
 from sklearn.metrics import ndcg_score
-import warnings
-
-warnings.filterwarnings("ignore")
 
 def apply_hybrid_transform(df, features):
     df_trans = df.copy()
@@ -56,14 +53,12 @@ def main():
         return pd.qcut(ranks, q=10, labels=[9, 8, 7, 6, 5, 4, 3, 2, 1, 0])
         
     df_trans['relevance'] = df_trans.groupby('qid')['Accuracy_Drop_deterministic'].transform(make_relevance).astype(int)
-
     experiments = [
         (['gemma', 'phi-tiny', 'llama'], 'Qwen'),
         (['Qwen', 'phi-tiny', 'llama'], 'gemma'),
         (['Qwen', 'gemma', 'llama'], 'phi-tiny'),
         (['Qwen', 'gemma', 'phi-tiny'], 'llama')
     ]
-    
     for train_models_list, test_model in experiments:
         train_mask = df_trans['Model'].isin(train_models_list) & (df_trans['Task'] != 'copa')
         test_mask = (df_trans['Model'] == test_model)
@@ -75,7 +70,6 @@ def main():
         y_train = train_df['relevance']
         qid_train = train_df['qid']
         X_test = test_df[features].fillna(0).astype(float)
-        
         ranker = xgb.XGBRanker(
             tree_method="hist",
             device="cuda",
@@ -95,33 +89,24 @@ def main():
         except Exception:
             ranker.set_params(device="cpu")
             ranker.fit(X_train, y_train, qid=qid_train, verbose=False)
-            
         preds = ranker.predict(X_test)
         test_df['pred_score'] = preds
-        
         print(f"\ntrain: {train_models_list}")
         print(f"test: {test_model}")
-        
         for task in test_df['Task'].unique():
             sub = test_df[test_df['Task'] == task]
             if len(sub) < 3: continue
-            
             corr, _ = spearmanr(sub['pred_score'], sub['Accuracy_Drop'])
             spearman_val = abs(corr)
-            
             k_budget = max(1, int(len(sub) * 0.20))
-            
             t_idx = sub.nsmallest(k_budget, 'Accuracy_Drop').index
             p_idx = sub.nlargest(k_budget, 'pred_score').index
             hr_budget = len(set(t_idx).intersection(set(p_idx))) / k_budget
-            
             true_relevance = -sub['Accuracy_Drop'].values
             true_relevance = true_relevance - np.min(true_relevance) 
             pred_scores = sub['pred_score'].values
-            
             ndcg_1 = ndcg_score([true_relevance], [pred_scores], k=1)
             ndcg_budget = ndcg_score([true_relevance], [pred_scores], k=k_budget)
-            
             print(f"   Task: {task:<5} | Spearman: {spearman_val:.4f} | "
                   f"HR-{k_budget} (20%): {hr_budget:.2%} | NDCG-1: {ndcg_1:.4f} | NDCG-{k_budget} (20%): {ndcg_budget:.4f}")
 

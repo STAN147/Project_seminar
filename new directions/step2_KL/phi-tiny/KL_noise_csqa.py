@@ -5,9 +5,7 @@ import torch.nn.functional as F
 import pandas as pd
 from transformers import AutoModelForCausalLM, AutoTokenizer, logging
 from tqdm import tqdm
-import warnings
 
-warnings.filterwarnings("ignore", category=FutureWarning)
 logging.set_verbosity_error()
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
